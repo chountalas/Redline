@@ -1,0 +1,316 @@
+import Foundation
+
+/// The four built-in review documents, ported verbatim from the design handoff's
+/// `app/data.js`. Two first-class use cases: lease-math QA and contract review.
+/// Every finding cites a clause + page so it can be verified against the source in
+/// seconds. These render the workspace exactly as designed before any PDF is run.
+enum SampleData {
+
+    static let groups: [DocGroup] = [
+        DocGroup(id: "leases", label: "Leases", ids: ["pembina", "idylwyld"]),
+        DocGroup(id: "contracts", label: "Contracts", ids: ["northgate", "nda"]),
+    ]
+
+    static let documents: [ReviewDoc] = [pembina, idylwyld, northgate, nda]
+
+    // ── 1) 100 Sample Highway — LEASE, the expensive defect ─────────────────
+    static let pembina = ReviewDoc(
+        id: "pembina", name: "100 Sample Highway", kind: "Commercial lease", type: "lease",
+        party: "Fixture Outdoor Media Ltd.", pages: 2, deal: false,
+        verdict: Verdict(level: "error", headline: "Do not sign", lead: "R2",
+            sub: "Rent is structured per display face — the figure that silently doubled this lease to $800K."),
+        facts: [
+            KeyTerm(k: "Stated total rent", v: "CAD 400,000"),
+            KeyTerm(k: "Rent basis", v: "per display face", flag: true),
+            KeyTerm(k: "Per-face rent", v: "CAD 400,000", flag: true),
+            KeyTerm(k: "Display faces", v: "2"),
+            KeyTerm(k: "Schedule", v: "Yr1 200,000 · Yr2 200,000"),
+            KeyTerm(k: "Escalation", v: "none stated"),
+            KeyTerm(k: "Term", v: "Jan 1 2026 → Dec 31 2027 (2 yr)"),
+        ],
+        findings: [
+            ReviewFinding(id: "R2", rule: "Per-face / total reconcile", severity: .error,
+                title: "Per-face rent does not reconcile to stated total",
+                detail: "Rent is charged per display face. 2 faces × CAD 400,000 = CAD 800,000, but the lease states a total of CAD 400,000. A figure meant as the whole total has been applied to each face — the same template defect that doubles a draft from $400K to $800K.",
+                plain: "Per-face rent doesn’t add up to the stated total.",
+                expected: "CAD 800,000.00", actual: "CAD 400,000.00",
+                evidence: [
+                    ReviewEvidence(clause: "p2-rent", quote: "Rent shall be $400,000 per Display Face"),
+                    ReviewEvidence(clause: "p2-total", quote: "Total rent shall be $400,000"),
+                ]),
+            ReviewFinding(id: "R1", rule: "Schedule sums to total", severity: .pass,
+                title: "Rent schedule sums to stated total",
+                detail: "Year 1 (200,000) + Year 2 (200,000) = CAD 400,000 — matches the stated total.",
+                plain: "Yearly schedule adds up to the stated total.",
+                evidence: [ReviewEvidence(clause: "p2-sched", quote: "Year 1: $200,000. Year 2: $200,000.")]),
+            ReviewFinding(id: "R3", rule: "Escalation consistency", severity: .pass,
+                title: "Schedule agrees with escalation terms",
+                detail: "The schedule is flat and no escalation clause is present — internally consistent.",
+                plain: "Flat schedule, no escalation clause — consistent.",
+                evidence: [ReviewEvidence(clause: "p2-esc", quote: "No annual escalation applies")]),
+            ReviewFinding(id: "R4", rule: "Numerals vs words", severity: .pass,
+                title: "Numerals match spelled-out amounts",
+                detail: "$400,000 matches “Four Hundred Thousand Dollars”.",
+                plain: "Every figure matches its spelled-out amount.",
+                evidence: [ReviewEvidence(clause: "p2-total", quote: "Four Hundred Thousand Dollars")]),
+            ReviewFinding(id: "R5", rule: "Term & date coherence", severity: .pass,
+                title: "Commencement, term and expiry agree",
+                detail: "Jan 1, 2026 + 2 years − 1 day = Dec 31, 2027 — matches the stated expiry.",
+                plain: "Commencement, term length and expiry all agree.",
+                evidence: [ReviewEvidence(clause: "p1-term", quote: "commences January 1, 2026")]),
+            ReviewFinding(id: "R6", rule: "Deal-sheet match", severity: .skip,
+                title: "No deal sheet provided",
+                detail: "Attach a deal.yaml to also check this draft against the terms you negotiated. That’s the only way to catch a lease that is internally consistent but uses the wrong business numbers.",
+                plain: "No deal sheet attached — intent not checked."),
+        ],
+        advisory: [],
+        dealTerms: [
+            DealTerm(label: "Per-face rent", expected: "CAD 250,000", actual: "CAD 400,000", verified: false, source: "thread"),
+        ],
+        document: [
+            DocPage(page: 1, heading: "Schedule A — Premises & Term", clauses: [
+                Clause(id: "p1-prem", num: "1.1", title: "Premises",
+                    text: "The Premises comprise the advertising structure located at 100 Sample Highway, including two (2) Display Faces, being the north-facing and south-facing panels of the structure."),
+                Clause(id: "p1-term", num: "1.2", title: "Term",
+                    text: "The Term commences January 1, 2026 and expires December 31, 2027, being a two (2) year Term. No renewal options apply to this Lease."),
+            ]),
+            DocPage(page: 2, heading: "Schedule B — Rent", clauses: [
+                Clause(id: "p2-rent", num: "2.1", title: "Rent",
+                    text: "Rent shall be $400,000 per Display Face, payable annually in advance on each anniversary of the Commencement Date."),
+                Clause(id: "p2-total", num: "2.2", title: "Total Rent",
+                    text: "Total rent shall be $400,000 ($400,000 (Four Hundred Thousand Dollars)) over the Term."),
+                Clause(id: "p2-sched", num: "2.3", title: "Rent Schedule",
+                    text: "Year 1: $200,000. Year 2: $200,000."),
+                Clause(id: "p2-esc", num: "2.4", title: "Escalation",
+                    text: "No annual escalation applies during the Term."),
+            ]),
+        ]
+    )
+
+    // ── 2) 200 Fixture Drive — LEASE, clean, checked against a deal sheet ────
+    static let idylwyld = ReviewDoc(
+        id: "idylwyld", name: "200 Fixture Drive", kind: "Commercial lease", type: "lease",
+        party: "Fixture Outdoor Media Ltd.", pages: 3, deal: true,
+        verdict: Verdict(level: "pass", headline: "Clears all checks", lead: "R6",
+            sub: "Six deterministic checks ran, including a match against your negotiated deal sheet."),
+        facts: [
+            KeyTerm(k: "Stated total rent", v: "CAD 600,000"),
+            KeyTerm(k: "Rent basis", v: "per display face"),
+            KeyTerm(k: "Per-face rent", v: "CAD 200,000"),
+            KeyTerm(k: "Display faces", v: "3"),
+            KeyTerm(k: "Schedule", v: "5 × 120,000"),
+            KeyTerm(k: "Term", v: "Mar 1 2026 → Feb 28 2031 (5 yr)"),
+            KeyTerm(k: "Renewals", v: "2 × 5 yr"),
+        ],
+        findings: [
+            ReviewFinding(id: "R2", rule: "Per-face / total reconcile", severity: .pass,
+                title: "Per-face rent reconciles to stated total",
+                detail: "3 faces × CAD 200,000 = CAD 600,000 — matches the stated total rent.",
+                plain: "3 faces × 200,000 = the stated 600,000 total.",
+                evidence: [ReviewEvidence(clause: "i2-rent", quote: "Rent shall be $200,000 per Display Face")]),
+            ReviewFinding(id: "R1", rule: "Schedule sums to total", severity: .pass,
+                title: "Rent schedule sums to stated total",
+                detail: "5 × CAD 120,000 = CAD 600,000 — matches the stated total.",
+                plain: "Five years at 120,000 add up to 600,000.",
+                evidence: [ReviewEvidence(clause: "i2-sched", quote: "Year 1: $120,000")]),
+            ReviewFinding(id: "R3", rule: "Escalation consistency", severity: .pass,
+                title: "Schedule agrees with escalation terms",
+                detail: "The schedule is flat and no escalation clause is present — internally consistent.",
+                plain: "Flat schedule, no escalation clause — consistent.",
+                evidence: [ReviewEvidence(clause: "i2-esc", quote: "No annual escalation applies")]),
+            ReviewFinding(id: "R4", rule: "Numerals vs words", severity: .pass,
+                title: "Numerals match spelled-out amounts",
+                detail: "$600,000 matches “Six Hundred Thousand Dollars”.",
+                plain: "Every figure matches its spelled-out amount.",
+                evidence: [ReviewEvidence(clause: "i2-total", quote: "Six Hundred Thousand Dollars")]),
+            ReviewFinding(id: "R5", rule: "Term & date coherence", severity: .info,
+                title: "Dates agree · total exposure 15 years",
+                detail: "Mar 1, 2026 + 5 years − 1 day = Feb 28, 2031. Base term plus two 5-year renewals is 15 years of total exposure — worth pricing in.",
+                plain: "Dates agree · 15 years total exposure incl. renewals.",
+                evidence: [ReviewEvidence(clause: "i3-renew", quote: "two (2) renewal options of five (5) years each")]),
+            ReviewFinding(id: "R6", rule: "Deal-sheet match", severity: .pass,
+                title: "Draft matches negotiated deal sheet",
+                detail: "Total rent, per-face rent, faces, base term and renewals all match idylwyld.deal.yaml.",
+                plain: "Draft matches every term in your deal.yaml.",
+                evidence: [ReviewEvidence(clause: "i2-total", quote: "Total rent shall be $600,000")]),
+        ],
+        advisory: [],
+        dealTerms: [
+            DealTerm(label: "Total rent", expected: "CAD 600,000", actual: "CAD 600,000", verified: true, source: "deal.yaml"),
+            DealTerm(label: "Per-face rent", expected: "CAD 200,000", actual: "CAD 200,000", verified: true, source: "deal.yaml"),
+            DealTerm(label: "Display faces", expected: "3", actual: "3", verified: true, source: "deal.yaml"),
+        ],
+        document: [
+            DocPage(page: 1, heading: "Schedule A — Premises & Term", clauses: [
+                Clause(id: "i1-prem", num: "1.1", title: "Premises",
+                    text: "The Premises comprise the advertising structure located at 200 Fixture Drive, including three (3) Display Faces."),
+                Clause(id: "i1-term", num: "1.2", title: "Term",
+                    text: "The Term commences March 1, 2026 and expires February 28, 2031, being a five (5) year Term, together with two (2) renewal options of five (5) years each."),
+            ]),
+            DocPage(page: 2, heading: "Schedule B — Rent", clauses: [
+                Clause(id: "i2-rent", num: "2.1", title: "Rent",
+                    text: "Rent shall be $200,000 per Display Face, payable annually in advance."),
+                Clause(id: "i2-total", num: "2.2", title: "Total Rent",
+                    text: "Total rent shall be $600,000 ($600,000 (Six Hundred Thousand Dollars)) over the base Term."),
+                Clause(id: "i2-sched", num: "2.3", title: "Rent Schedule",
+                    text: "Year 1: $120,000. Year 2: $120,000. Year 3: $120,000. Year 4: $120,000. Year 5: $120,000."),
+                Clause(id: "i2-esc", num: "2.4", title: "Escalation",
+                    text: "No annual escalation applies during the base Term."),
+            ]),
+            DocPage(page: 3, heading: "Schedule C — Renewals", clauses: [
+                Clause(id: "i3-renew", num: "3.1", title: "Renewal Options",
+                    text: "The Tenant may renew for two (2) renewal options of five (5) years each on the same terms as to rent, subject to renegotiation of escalation."),
+            ]),
+        ]
+    )
+
+    // ── 3) Northgate MSA — CONTRACT review, needs attention ─────────────────
+    static let northgate = ReviewDoc(
+        id: "northgate", name: "Northgate MSA", kind: "Master Services Agreement", type: "contract",
+        party: "Northgate Systems Inc.", pages: 4, deal: false,
+        verdict: Verdict(level: "error", headline: "Don’t countersign yet", lead: "X2",
+            sub: "A broken cross-reference and a missed auto-renewal opt-out window — both verifiable in the source."),
+        facts: [
+            KeyTerm(k: "Monthly fee", v: "USD 12,000"),
+            KeyTerm(k: "Annual fee", v: "USD 144,000"),
+            KeyTerm(k: "Effective date", v: "Aug 1, 2025"),
+            KeyTerm(k: "Initial term", v: "1 year → Jul 31 2026"),
+            KeyTerm(k: "Renewal", v: "auto, 1-yr terms", flag: true),
+            KeyTerm(k: "Opt-out notice", v: "≥ 90 days", flag: true),
+            KeyTerm(k: "Liability cap", v: "fees paid, prior 12 mo"),
+            KeyTerm(k: "Governing law", v: "Delaware"),
+        ],
+        findings: [
+            ReviewFinding(id: "X2", rule: "Auto-renewal notice window", severity: .error,
+                title: "Auto-renewal opt-out deadline has passed",
+                detail: "The Agreement renews automatically for successive 1-year terms unless either party gives notice at least 90 days before the end of the then-current term. The initial term ends Jul 31, 2026, so the notice deadline is May 2, 2026. Today is Jun 1, 2026 — the window closed 30 days ago. To avoid an automatic 1-year renewal you must act now or accept the renewal.",
+                plain: "The opt-out deadline has already passed — it will auto-renew.",
+                expected: "Notice by 2026-05-02", actual: "Today 2026-06-01 (30 days past)",
+                evidence: [
+                    ReviewEvidence(clause: "n3-renew", quote: "unless either party provides written notice at least ninety (90) days prior to the end of the then-current term"),
+                    ReviewEvidence(clause: "n1-term", quote: "Initial Term of one (1) year commencing on the Effective Date"),
+                ]),
+            ReviewFinding(id: "X1", rule: "Cross-reference integrity", severity: .error,
+                title: "Broken cross-reference to a non-existent section",
+                detail: "Section 9.3 limits remedies “as set out in Section 14 (Limitation of Liability)”, but this Agreement ends at Section 13. The liability limitation is actually Section 13. As drafted, the remedies clause references nothing — leaving the limitation unenforced.",
+                plain: "Section 9.3 points to a “Section 14” that doesn’t exist.",
+                expected: "Reference resolves to an existing section", actual: "“Section 14” is undefined",
+                evidence: [ReviewEvidence(clause: "n2-remedy", quote: "subject to the limitations set out in Section 14 (Limitation of Liability)")]),
+            ReviewFinding(id: "X5", rule: "Liability cap vs indemnity", severity: .warn,
+                title: "Indemnity sits outside the liability cap",
+                detail: "Liability is capped at fees paid in the prior 12 months (Section 13), but the indemnity in Section 11 is not made subject to that cap. Uncapped indemnity can swallow the cap — confirm this is intended.",
+                plain: "Liability is capped, but the indemnity is uncapped.",
+                evidence: [
+                    ReviewEvidence(clause: "n4-liab", quote: "total liability shall not exceed the fees paid in the twelve (12) months preceding the claim"),
+                    ReviewEvidence(clause: "n4-indem", quote: "the Provider shall indemnify and hold harmless the Client"),
+                ]),
+            ReviewFinding(id: "X3", rule: "Defined-term coverage", severity: .warn,
+                title: "Capitalized term used without a definition",
+                detail: "“Confidential Information” appears in Section 8 but is never defined in Section 1 (Definitions) or elsewhere. Undefined capitalized terms create ambiguity about what is actually protected.",
+                plain: "“Confidential Information” is used but never defined.",
+                evidence: [ReviewEvidence(clause: "n3-conf", quote: "Each party shall protect the other’s Confidential Information")]),
+            ReviewFinding(id: "X4", rule: "Payment-term consistency", severity: .pass,
+                title: "Fees are internally consistent",
+                detail: "USD 12,000 per month × 12 = USD 144,000 per year, matching the stated annual fee.",
+                plain: "Monthly and annual fees are arithmetically consistent.",
+                evidence: [ReviewEvidence(clause: "n2-fees", quote: "a fee of $12,000 per month ($144,000 annually)")]),
+            ReviewFinding(id: "X6", rule: "Exhibit completeness", severity: .pass,
+                title: "All referenced exhibits are present",
+                detail: "Exhibits A, B and C are referenced in the body and all three are attached.",
+                plain: "Every referenced exhibit (A–C) is attached.",
+                evidence: [ReviewEvidence(clause: "n2-fees", quote: "as described in Exhibit A")]),
+        ],
+        advisory: [
+            ReviewFinding(id: "A1", rule: "Governing law", severity: .advisory,
+                title: "Delaware governing law for Manitoba parties",
+                detail: "Both signatories appear to be Manitoba entities, yet the Agreement selects Delaware law and Delaware courts. This is a judgment call, not a math error — worth confirming enforceability and forum convenience with counsel.",
+                evidence: [ReviewEvidence(clause: "n4-law", quote: "governed by the laws of the State of Delaware")]),
+        ],
+        document: [
+            DocPage(page: 1, heading: "1. Definitions & Term", clauses: [
+                Clause(id: "n1-def", num: "1.1", title: "Definitions",
+                    text: "“Agreement” means this Master Services Agreement. “Services” means the services described in Exhibit A. “Effective Date” means August 1, 2025."),
+                Clause(id: "n1-term", num: "2.1", title: "Term",
+                    text: "This Agreement begins on the Effective Date and continues for an Initial Term of one (1) year commencing on the Effective Date."),
+            ]),
+            DocPage(page: 2, heading: "2. Fees & Remedies", clauses: [
+                Clause(id: "n2-fees", num: "3.1", title: "Fees",
+                    text: "The Client shall pay a fee of $12,000 per month ($144,000 annually) for the Services as described in Exhibit A, invoiced monthly per Exhibit B and supported by the reporting in Exhibit C."),
+                Clause(id: "n2-remedy", num: "9.3", title: "Remedies",
+                    text: "The Client’s remedies for any breach are subject to the limitations set out in Section 14 (Limitation of Liability)."),
+            ]),
+            DocPage(page: 3, heading: "3. Renewal & Confidentiality", clauses: [
+                Clause(id: "n3-renew", num: "2.2", title: "Renewal",
+                    text: "Upon expiry of the Initial Term, this Agreement renews automatically for successive one (1) year terms unless either party provides written notice at least ninety (90) days prior to the end of the then-current term."),
+                Clause(id: "n3-conf", num: "8.1", title: "Confidentiality",
+                    text: "Each party shall protect the other’s Confidential Information with the same care it uses for its own, and no less than reasonable care."),
+            ]),
+            DocPage(page: 4, heading: "4. Liability, Indemnity & Governing Law", clauses: [
+                Clause(id: "n4-liab", num: "13.1", title: "Limitation of Liability",
+                    text: "Except for the indemnity below, each party’s total liability shall not exceed the fees paid in the twelve (12) months preceding the claim."),
+                Clause(id: "n4-indem", num: "11.1", title: "Indemnity",
+                    text: "The Provider shall indemnify and hold harmless the Client against all third-party claims arising from the Services."),
+                Clause(id: "n4-law", num: "12.1", title: "Governing Law",
+                    text: "This Agreement is governed by the laws of the State of Delaware, and the parties submit to the exclusive jurisdiction of the Delaware courts."),
+            ]),
+        ]
+    )
+
+    // ── 4) Mutual NDA — Vesper Labs — CONTRACT review, clean ────────────────
+    static let nda = ReviewDoc(
+        id: "nda", name: "Mutual NDA — Vesper", kind: "Mutual NDA", type: "contract",
+        party: "Vesper Labs, LLC", pages: 2, deal: false,
+        verdict: Verdict(level: "pass", headline: "Clears all checks", lead: "X1",
+            sub: "Cross-references resolve, terms are defined, and the dates and survival period cohere."),
+        facts: [
+            KeyTerm(k: "Type", v: "Mutual, 2-way"),
+            KeyTerm(k: "Effective date", v: "Apr 15, 2026"),
+            KeyTerm(k: "Term", v: "2 years"),
+            KeyTerm(k: "Survival", v: "3 years post-term"),
+            KeyTerm(k: "Auto-renewal", v: "none"),
+            KeyTerm(k: "Governing law", v: "New York"),
+        ],
+        findings: [
+            ReviewFinding(id: "X1", rule: "Cross-reference integrity", severity: .pass,
+                title: "All cross-references resolve",
+                detail: "Section 4 references Section 2 (Definition) and Section 6 references Section 3 (Term) — both exist.",
+                plain: "Every section reference resolves to a real section.",
+                evidence: [ReviewEvidence(clause: "v2-return", quote: "as defined in Section 2")]),
+            ReviewFinding(id: "X3", rule: "Defined-term coverage", severity: .pass,
+                title: "All capitalized terms are defined",
+                detail: "“Confidential Information”, “Discloser” and “Recipient” are all defined in Section 2.",
+                plain: "Every capitalized term is defined before use.",
+                evidence: [ReviewEvidence(clause: "v1-def", quote: "“Confidential Information” means any non-public information")]),
+            ReviewFinding(id: "X7", rule: "Term & survival coherence", severity: .info,
+                title: "Survival extends beyond the term",
+                detail: "The Agreement runs two (2) years from Apr 15, 2026, while confidentiality obligations survive three (3) years after termination — i.e. protection runs to roughly Apr 2031.",
+                plain: "2-year term; confidentiality survives 3 years after.",
+                evidence: [ReviewEvidence(clause: "v2-term", quote: "survive for three (3) years following termination")]),
+            ReviewFinding(id: "X2", rule: "Auto-renewal notice window", severity: .pass,
+                title: "No automatic renewal",
+                detail: "The Agreement expires at the end of its term with no automatic renewal, so there is no notice deadline to track.",
+                plain: "No auto-renewal — nothing to diarize.",
+                evidence: [ReviewEvidence(clause: "v2-term", quote: "expire two (2) years after the Effective Date")]),
+            ReviewFinding(id: "X4", rule: "Defined-term coverage", severity: .pass,
+                title: "Obligations are mutual and symmetric",
+                detail: "Both parties act as Discloser and Recipient under identical obligations — consistent with a mutual NDA.",
+                plain: "Mutual obligations are symmetric for both parties.",
+                evidence: [ReviewEvidence(clause: "v1-def", quote: "each party may act as Discloser and Recipient")]),
+        ],
+        advisory: [],
+        document: [
+            DocPage(page: 1, heading: "1. Parties & Definitions", clauses: [
+                Clause(id: "v1-parties", num: "1.1", title: "Parties",
+                    text: "This Mutual Non-Disclosure Agreement is between Vesper Labs, LLC and the Counterparty, effective April 15, 2026."),
+                Clause(id: "v1-def", num: "2.1", title: "Definitions",
+                    text: "“Confidential Information” means any non-public information disclosed by one party to the other. Under this mutual Agreement, each party may act as Discloser and Recipient."),
+            ]),
+            DocPage(page: 2, heading: "2. Term & Return", clauses: [
+                Clause(id: "v2-term", num: "3.1", title: "Term",
+                    text: "This Agreement shall expire two (2) years after the Effective Date. Confidentiality obligations survive for three (3) years following termination."),
+                Clause(id: "v2-return", num: "4.1", title: "Return of Materials",
+                    text: "Upon termination, each party shall return or destroy all Confidential Information as defined in Section 2."),
+            ]),
+        ]
+    )
+}

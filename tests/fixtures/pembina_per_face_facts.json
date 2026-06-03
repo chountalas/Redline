@@ -1,0 +1,73 @@
+{
+  "source_file": "synthetic-pembina.pdf",
+  "page_count": 2,
+  "stated_total_rent": {
+    "value": { "amount": "400000", "currency": "CAD" },
+    "quote": "Total rent shall be $400,000.",
+    "page": 2
+  },
+  "rent_basis": {
+    "value": "per_face",
+    "quote": "Rent shall be $400,000 per Display Face.",
+    "page": 2
+  },
+  "per_face_rent": {
+    "value": { "amount": "400000", "currency": "CAD" },
+    "quote": "$400,000 per Display Face",
+    "page": 2
+  },
+  "num_display_faces": {
+    "value": 2,
+    "quote": "The Premises include two Display Faces.",
+    "page": 1
+  },
+  "rent_schedule": [
+    {
+      "label": "Year 1",
+      "amount": { "amount": "200000", "currency": "CAD" },
+      "quote": "Year 1: $200,000",
+      "page": 2
+    },
+    {
+      "label": "Year 2",
+      "amount": { "amount": "200000", "currency": "CAD" },
+      "quote": "Year 2: $200,000",
+      "page": 2
+    }
+  ],
+  "escalation_pct": { "value": null, "quote": null, "page": null },
+  "escalation_clause_present": {
+    "value": false,
+    "quote": "No annual escalation applies.",
+    "page": 2
+  },
+  "amount_word_pairs": [
+    {
+      "numeral": { "amount": "400000", "currency": "CAD" },
+      "words": "Four Hundred Thousand Dollars",
+      "quote": "$400,000 (Four Hundred Thousand Dollars)",
+      "page": 2
+    }
+  ],
+  "commencement_date": {
+    "value": "2026-01-01",
+    "quote": "commences January 1, 2026",
+    "page": 1
+  },
+  "base_term_years": {
+    "value": "2",
+    "quote": "two year term",
+    "page": 1
+  },
+  "renewal_options": {
+    "value": [],
+    "quote": "no renewal options",
+    "page": 1
+  },
+  "stated_expiry_date": {
+    "value": "2027-12-31",
+    "quote": "expires December 31, 2027",
+    "page": 1
+  },
+  "extraction_notes": "Synthetic fixture only."
+}

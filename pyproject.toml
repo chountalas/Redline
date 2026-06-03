@@ -1,0 +1,92 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "redline-lease"
+version = "0.1.0"
+description = "Trustworthy commercial lease validation: LLM extraction, deterministic math checks."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "Calesthio" }
+]
+keywords = ["lease", "validation", "commercial-real-estate", "mcp", "codex", "ollama"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Legal Industry",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business :: Financial",
+  "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+  "openai>=2.8.0",
+  "pdfplumber>=0.11.0",
+  "pydantic>=2.8.0",
+  "python-dateutil>=2.9.0",
+  "PyYAML>=6.0.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.40.0"]
+mcp = ["mcp>=1.9.0"]
+dev = [
+  "anthropic>=0.40.0",
+  "mcp>=1.9.0",
+  "mypy>=1.11.0",
+  "pytest>=8.3.0",
+  "reportlab>=4.2.0",
+  "ruff>=0.6.0",
+  "types-python-dateutil>=2.9.0.20240316",
+  "types-PyYAML>=6.0.12.20240311",
+]
+
+[project.scripts]
+redline = "redline.cli:main"
+redline-mcp = "redline.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/chountalas/Redline"
+Issues = "https://github.com/chountalas/Redline/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/redline"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.codex",
+  "/.github",
+  "/.mypy_cache",
+  "/.pytest_cache",
+  "/.ruff_cache",
+  "/.venv",
+  "/dist",
+  "/docs/superpowers",
+  "/macos/RedlineMac/.build",
+  "/scripts/__pycache__",
+  "/src/**/__pycache__",
+  "/tests/**/__pycache__",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
+plugins = ["pydantic.mypy"]
