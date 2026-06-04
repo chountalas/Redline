@@ -52,7 +52,10 @@ xcrun stapler staple "$DMG_PATH"
 xcrun stapler validate "$DMG_PATH"
 
 echo "==> Refreshing checksums"
-shasum -a 256 "$ZIP_PATH" "$DMG_PATH" > "$ROOT_DIR/dist/checksums.txt"
+(
+  cd "$ROOT_DIR/dist"
+  shasum -a 256 "$(basename "$ZIP_PATH")" "$(basename "$DMG_PATH")" > checksums.txt
+)
 
 echo "==> Verifying Gatekeeper acceptance"
 spctl -a -vv -t open --context context:primary-signature "$DMG_PATH"

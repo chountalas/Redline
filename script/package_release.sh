@@ -100,7 +100,10 @@ hdiutil create \
   -format UDZO \
   "$DMG_PATH"
 
-shasum -a 256 "$ZIP_PATH" "$DMG_PATH" > "$DIST_DIR/checksums.txt"
+(
+  cd "$DIST_DIR"
+  shasum -a 256 "$(basename "$ZIP_PATH")" "$(basename "$DMG_PATH")" > checksums.txt
+)
 
 echo "$ZIP_PATH"
 echo "$DMG_PATH"
