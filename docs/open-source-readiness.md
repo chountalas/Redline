@@ -11,6 +11,7 @@ uv run pytest -q
 uv run mypy src
 uv run ruff check .
 uv run python scripts/check_release_safety.py
+./script/package_release.sh
 ```
 
 Run the Swift commands from `macos/RedlineMac`. Run the Python and safety commands from the repository root.
@@ -23,7 +24,9 @@ Run the Swift commands from `macos/RedlineMac`. Run the Python and safety comman
 - README install instructions match the actual release state.
 - `PRIVACY.md` and `SECURITY.md` still reflect the current provider behavior.
 - The macOS app launches via `./script/build_and_run.sh --verify`.
+- Release builds pass `codesign --verify --deep --strict dist/Redline.app`.
+- Homebrew formula and cask audit cleanly from the tap checkout.
 
 ## Distribution State
 
-The source checkout is usable now. Public binary distribution, notarization, Homebrew packaging, and PyPI publication should each get a separate release check before announcement.
+Homebrew is the supported public install path for the CLI and app. Public notarized app distribution should be cut with `./script/release.sh` before updating the cask. PyPI publication is not complete yet.

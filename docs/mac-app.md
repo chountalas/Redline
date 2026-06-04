@@ -2,11 +2,12 @@
 
 Redline includes a SwiftUI macOS wrapper for local review workflows. It is a shell over the Python CLI, not a separate validator.
 
-The app can be built and installed from a source checkout. It is not notarized or packaged as a public binary yet.
+The public app install is the Homebrew cask. The source checkout can also build a development app bundle.
 
 ## Requirements
 
 - macOS 14 or newer
+- For public installs: Homebrew
 - Xcode command line tools / Swift toolchain
 - `uv`
 - The provider you choose:
@@ -15,7 +16,23 @@ The app can be built and installed from a source checkout. It is not notarized o
   - Ollama running locally for Ollama
   - `ANTHROPIC_API_KEY` plus the Anthropic extra for Anthropic
 
-## Run
+## Install
+
+Install the CLI:
+
+```bash
+brew install chountalas/tap/redline
+```
+
+Install the Mac app:
+
+```bash
+brew install --cask chountalas/tap/redline
+```
+
+The cask installs `Redline.app` into `/Applications` and depends on the CLI formula. That keeps the GUI, CLI, and MCP server on the same validator engine.
+
+## Development Run
 
 ```bash
 ./script/build_and_run.sh
@@ -23,7 +40,7 @@ The app can be built and installed from a source checkout. It is not notarized o
 
 The script builds `macos/RedlineMac`, stages `dist/Redline.app`, and opens it as a foreground macOS app.
 
-Install into `/Applications`:
+Install a development build into `/Applications`:
 
 ```bash
 ./script/build_and_run.sh --install

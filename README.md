@@ -16,8 +16,15 @@ With Homebrew:
 brew install chountalas/tap/redline
 ```
 
-This installs the CLI tools (`redline` and `redline-mcp`). It does not install
-`Redline.app` into `/Applications`.
+This installs the CLI tools (`redline` and `redline-mcp`).
+
+For the Mac app:
+
+```bash
+brew install --cask chountalas/tap/redline
+```
+
+The cask installs `Redline.app` into `/Applications` and depends on the CLI formula, so the GUI and terminal command use the same validator engine.
 
 From source:
 
@@ -28,7 +35,7 @@ uv sync --extra dev --extra mcp
 uv run redline check lease.pdf
 ```
 
-After the package is published, the intended package install is:
+After the Python package is published, the intended package install is:
 
 ```bash
 pip install redline-lease
@@ -94,13 +101,13 @@ uv run redline check lease.pdf --context "Check that the rent matches the negoti
 
 ## Mac App
 
-The source checkout includes a local SwiftUI macOS wrapper. It uses the same Python validator engine as the CLI.
+Redline includes a SwiftUI macOS wrapper. It uses the same Python validator engine as the CLI.
 
 ```bash
 ./script/build_and_run.sh
 ```
 
-To install the app into `/Applications` from a source checkout:
+To install a development build into `/Applications` from a source checkout:
 
 ```bash
 ./script/build_and_run.sh --install
@@ -163,4 +170,4 @@ uv run python scripts/check_release_safety.py
 
 ## Status
 
-Open-source alpha. The package is not published yet; use the source checkout until a release is tagged.
+Open-source alpha. Homebrew is the supported public install path. The Python package is not published to PyPI yet.
