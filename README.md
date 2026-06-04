@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/redline-icon.png" width="88" alt="Redline app icon">
+</p>
+
 # Redline
 
 Redline validates commercial lease math. It extracts lease facts with a configurable model provider, then runs deterministic checks over the extracted numbers so the verdict is based on arithmetic and rule assertions, not model judgment.
@@ -87,6 +91,12 @@ The source checkout includes a local SwiftUI macOS wrapper. It uses the same Pyt
 ```
 
 The app supports choosing or dropping a lease PDF, choosing an optional `deal.yaml`, entering optional deal context/focus text, choosing Codex/OpenAI/Ollama/Anthropic, and reviewing the resulting report from a native window. The API key field is runtime-only and is passed to the CLI process as `REDLINE_API_KEY`; it is not written to disk by Redline. Codex and Ollama do not need a key.
+
+## Screenshots
+
+![Redline empty state](docs/assets/redline-empty-state.png)
+
+![Redline review workspace](docs/assets/redline-review-workspace.png)
 
 ## Per-Face Total Demo
 
