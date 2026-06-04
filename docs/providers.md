@@ -31,6 +31,18 @@ REDLINE_LLM_PROVIDER=codex
 
 OpenAI API is available separately and requires an API key plus an explicit current model.
 
+Install optional OpenAI dependencies for a minimal install:
+
+```bash
+uv sync --extra openai
+```
+
+After package publication:
+
+```bash
+pip install "redline-lease[openai]"
+```
+
 ```bash
 export OPENAI_API_KEY=...
 redline check lease.pdf

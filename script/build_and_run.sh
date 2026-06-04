@@ -16,6 +16,8 @@ APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_SRC="$PACKAGE_DIR/AppIcon.icns"
+VERSION="$(awk -F '"' '/^version =/{print $2; exit}' "$ROOT_DIR/pyproject.toml")"
+APPLICATIONS_APP="/Applications/$APP_NAME.app"
 
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
@@ -41,6 +43,10 @@ cat >"$INFO_PLIST" <<PLIST
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
   <string>$APP_NAME</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$VERSION</string>
+  <key>CFBundleVersion</key>
+  <string>$VERSION</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>LSMinimumSystemVersion</key>
@@ -50,6 +56,8 @@ cat >"$INFO_PLIST" <<PLIST
 </dict>
 </plist>
 PLIST
+
+/usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 
 open_app() {
   REDLINE_REPO_ROOT="$ROOT_DIR" /usr/bin/open -n "$APP_BUNDLE"
@@ -75,9 +83,13 @@ case "$MODE" in
     sleep 1
     pgrep -x "$APP_NAME" >/dev/null
     ;;
+  --install|install)
+    rm -rf "$APPLICATIONS_APP"
+    /usr/bin/ditto "$APP_BUNDLE" "$APPLICATIONS_APP"
+    echo "Installed $APPLICATIONS_APP"
+    ;;
   *)
-    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2
+    echo "usage: $0 [run|--debug|--logs|--telemetry|--verify|--install]" >&2
     exit 2
     ;;
 esac
-

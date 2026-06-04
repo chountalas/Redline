@@ -16,6 +16,9 @@ With Homebrew:
 brew install chountalas/tap/redline
 ```
 
+This installs the CLI tools (`redline` and `redline-mcp`). It does not install
+`Redline.app` into `/Applications`.
+
 From source:
 
 ```bash
@@ -46,6 +49,7 @@ uv run redline check lease.pdf --provider codex
 OpenAI API is separate and requires an API key plus an explicit current model:
 
 ```bash
+uv sync --extra openai
 export OPENAI_API_KEY=...
 uv run redline check lease.pdf --provider openai --model <openai-model>
 ```
@@ -94,6 +98,12 @@ The source checkout includes a local SwiftUI macOS wrapper. It uses the same Pyt
 
 ```bash
 ./script/build_and_run.sh
+```
+
+To install the app into `/Applications` from a source checkout:
+
+```bash
+./script/build_and_run.sh --install
 ```
 
 The app supports choosing or dropping a lease PDF, choosing an optional `deal.yaml`, entering optional deal context/focus text, choosing Codex/OpenAI/Ollama/Anthropic, and reviewing the resulting report from a native window. The API key field is runtime-only and is passed to the CLI process as `REDLINE_API_KEY`; it is not written to disk by Redline. Codex and Ollama do not need a key.

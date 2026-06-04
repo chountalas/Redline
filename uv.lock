@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-25T20:15:02.271292Z"
+exclude-newer = "2026-05-28T02:14:39.345809Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -1182,7 +1182,6 @@ name = "redline-lease"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "openai" },
     { name = "pdfplumber" },
     { name = "pydantic" },
     { name = "python-dateutil" },
@@ -1197,6 +1196,7 @@ dev = [
     { name = "anthropic" },
     { name = "mcp" },
     { name = "mypy" },
+    { name = "openai" },
     { name = "pytest" },
     { name = "reportlab" },
     { name = "ruff" },
@@ -1206,6 +1206,9 @@ dev = [
 mcp = [
     { name = "mcp" },
 ]
+openai = [
+    { name = "openai" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1214,7 +1217,8 @@ requires-dist = [
     { name = "mcp", marker = "extra == 'dev'", specifier = ">=1.9.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.9.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11.0" },
-    { name = "openai", specifier = ">=2.8.0" },
+    { name = "openai", marker = "extra == 'dev'", specifier = ">=2.8.0" },
+    { name = "openai", marker = "extra == 'openai'", specifier = ">=2.8.0" },
     { name = "pdfplumber", specifier = ">=0.11.0" },
     { name = "pydantic", specifier = ">=2.8.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
@@ -1225,7 +1229,7 @@ requires-dist = [
     { name = "types-python-dateutil", marker = "extra == 'dev'", specifier = ">=2.9.0.20240316" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0.12.20240311" },
 ]
-provides-extras = ["anthropic", "mcp", "dev"]
+provides-extras = ["openai", "anthropic", "mcp", "dev"]
 
 [[package]]
 name = "referencing"

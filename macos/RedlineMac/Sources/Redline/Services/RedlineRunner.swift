@@ -48,6 +48,20 @@ struct RedlineRunner {
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     }
 
+    var sourceCheckoutRoot: URL? {
+        let pyprojectURL = repoRoot.appendingPathComponent("pyproject.toml")
+        guard FileManager.default.fileExists(atPath: pyprojectURL.path) else { return nil }
+        return repoRoot
+    }
+
+    func commandPrefix() -> [String] {
+        sourceCheckoutRoot == nil ? ["redline", "check"] : ["uv", "run", "redline", "check"]
+    }
+
+    func workingDirectoryURL() -> URL {
+        sourceCheckoutRoot ?? FileManager.default.homeDirectoryForCurrentUser
+    }
+
     func run(
         leasePDF: URL,
         dealSheet: URL?,
@@ -63,13 +77,9 @@ struct RedlineRunner {
         try await withCheckedThrowingContinuation { continuation in
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-            process.currentDirectoryURL = repoRoot
+            process.currentDirectoryURL = workingDirectoryURL()
 
-            var arguments = [
-                "uv",
-                "run",
-                "redline",
-                "check",
+            var arguments = commandPrefix() + [
                 leasePDF.path,
                 "--json",
                 "--fail-on",

@@ -2,7 +2,7 @@
 
 Redline includes a SwiftUI macOS wrapper for local review workflows. It is a shell over the Python CLI, not a separate validator.
 
-The app currently runs from a source checkout. It is not notarized or packaged as a public binary yet.
+The app can be built and installed from a source checkout. It is not notarized or packaged as a public binary yet.
 
 ## Requirements
 
@@ -22,6 +22,12 @@ The app currently runs from a source checkout. It is not notarized or packaged a
 ```
 
 The script builds `macos/RedlineMac`, stages `dist/Redline.app`, and opens it as a foreground macOS app.
+
+Install into `/Applications`:
+
+```bash
+./script/build_and_run.sh --install
+```
 
 Other modes:
 
@@ -52,4 +58,4 @@ The app invokes:
 uv run redline check <lease.pdf> --json --provider <provider>
 ```
 
-from the repository root. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path.
+from the repository root when launched from a source checkout. When the app is installed outside a checkout, it invokes the installed `redline` CLI directly. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path.
