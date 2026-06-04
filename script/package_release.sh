@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="Redline"
-BUNDLE_ID="com.calesthio.Redline"
+BUNDLE_ID="com.connorhountalas.Redline"
 MIN_SYSTEM_VERSION="14.0"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGE_DIR="$ROOT_DIR/macos/RedlineMac"

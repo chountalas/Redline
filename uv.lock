@@ -7,7 +7,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-05-28T02:14:39.345809Z"
+exclude-newer = "2026-05-28T03:43:22.040848Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -1179,7 +1179,7 @@ wheels = [
 
 [[package]]
 name = "redline-lease"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "pdfplumber" },

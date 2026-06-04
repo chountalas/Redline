@@ -16,7 +16,7 @@ enum SampleData {
     // ── 1) 100 Sample Highway — LEASE, the expensive defect ─────────────────
     static let pembina = ReviewDoc(
         id: "pembina", name: "100 Sample Highway", kind: "Commercial lease", type: "lease",
-        party: "Fixture Outdoor Media Ltd.", pages: 2, deal: false,
+        party: "Example Outdoor Media Ltd.", pages: 2, deal: false,
         verdict: Verdict(level: "error", headline: "Do not sign", lead: "R2",
             sub: "Rent is structured per display face — the figure that silently doubled this lease to $800K."),
         facts: [
@@ -90,7 +90,7 @@ enum SampleData {
     // ── 2) 200 Fixture Drive — LEASE, clean, checked against a deal sheet ────
     static let idylwyld = ReviewDoc(
         id: "idylwyld", name: "200 Fixture Drive", kind: "Commercial lease", type: "lease",
-        party: "Fixture Outdoor Media Ltd.", pages: 3, deal: true,
+        party: "Example Outdoor Media Ltd.", pages: 3, deal: true,
         verdict: Verdict(level: "pass", headline: "Clears all checks", lead: "R6",
             sub: "Six deterministic checks ran, including a match against your negotiated deal sheet."),
         facts: [
@@ -164,10 +164,10 @@ enum SampleData {
         ]
     )
 
-    // ── 3) Northgate MSA — CONTRACT review, needs attention ─────────────────
+    // ── 3) Example Services MSA — CONTRACT review, needs attention ──────────
     static let northgate = ReviewDoc(
-        id: "northgate", name: "Northgate MSA", kind: "Master Services Agreement", type: "contract",
-        party: "Northgate Systems Inc.", pages: 4, deal: false,
+        id: "northgate", name: "Example Services MSA", kind: "Master Services Agreement", type: "contract",
+        party: "Example Systems Inc.", pages: 4, deal: false,
         verdict: Verdict(level: "error", headline: "Don’t countersign yet", lead: "X2",
             sub: "A broken cross-reference and a missed auto-renewal opt-out window — both verifiable in the source."),
         facts: [
@@ -256,10 +256,10 @@ enum SampleData {
         ]
     )
 
-    // ── 4) Mutual NDA — Vesper Labs — CONTRACT review, clean ────────────────
+    // ── 4) Mutual NDA — Example Labs — CONTRACT review, clean ───────────────
     static let nda = ReviewDoc(
-        id: "nda", name: "Mutual NDA — Vesper", kind: "Mutual NDA", type: "contract",
-        party: "Vesper Labs, LLC", pages: 2, deal: false,
+        id: "nda", name: "Mutual NDA — Example Labs", kind: "Mutual NDA", type: "contract",
+        party: "Example Labs, LLC", pages: 2, deal: false,
         verdict: Verdict(level: "pass", headline: "Clears all checks", lead: "X1",
             sub: "Cross-references resolve, terms are defined, and the dates and survival period cohere."),
         facts: [
@@ -301,7 +301,7 @@ enum SampleData {
         document: [
             DocPage(page: 1, heading: "1. Parties & Definitions", clauses: [
                 Clause(id: "v1-parties", num: "1.1", title: "Parties",
-                    text: "This Mutual Non-Disclosure Agreement is between Vesper Labs, LLC and the Counterparty, effective April 15, 2026."),
+                    text: "This Mutual Non-Disclosure Agreement is between Example Labs, LLC and the Counterparty, effective April 15, 2026."),
                 Clause(id: "v1-def", num: "2.1", title: "Definitions",
                     text: "“Confidential Information” means any non-public information disclosed by one party to the other. Under this mutual Agreement, each party may act as Discloser and Recipient."),
             ]),

@@ -12,8 +12,8 @@ APP_PATH="$ROOT_DIR/dist/$APP_NAME.app"
 DMG_PATH="$ROOT_DIR/dist/$APP_NAME-$VERSION-arm64.dmg"
 ZIP_PATH="$ROOT_DIR/dist/$APP_NAME-$VERSION-arm64.zip"
 STAGING_DIR="$ROOT_DIR/dist/staging"
-SIGN_IDENTITY="Developer ID Application: Connor Hountalas (V54JNNN85Y)"
-NOTARY_PROFILE="luma-notary"
+SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Connor Hountalas (V54JNNN85Y)}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-redline-notary}"
 
 cd "$ROOT_DIR"
 

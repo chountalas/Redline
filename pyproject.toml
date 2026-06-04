@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redline-lease"
-version = "0.1.0"
+version = "0.1.1"
 description = "Trustworthy commercial lease validation: LLM extraction, deterministic math checks."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [
-  { name = "Calesthio" }
+  { name = "Connor Hountalas" }
 ]
 keywords = ["lease", "validation", "commercial-real-estate", "mcp", "codex", "ollama"]
 classifiers = [

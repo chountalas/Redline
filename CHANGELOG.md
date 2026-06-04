@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-06-04
+
+- Replace placeholder owner and bundle metadata with public release metadata.
+- Make release checksum files portable by writing artifact basenames instead of local build paths.
+- Rename demo-party sample data to unmistakably synthetic names.
+
 ## 0.1.0 - 2026-06-04
 
 - Scaffold open-source alpha package.

@@ -119,8 +119,6 @@ The app supports choosing or dropping a lease PDF, choosing an optional `deal.ya
 
 ![Redline empty state](docs/assets/redline-empty-state.png)
 
-![Redline review workspace](docs/assets/redline-review-workspace.png)
-
 ## Per-Face Total Demo
 
 Synthetic fixture:
