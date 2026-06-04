@@ -10,6 +10,12 @@ The first target is the expensive template error where rent was drafted as a fig
 
 ## Install
 
+With Homebrew:
+
+```bash
+brew install chountalas/tap/redline
+```
+
 From source:
 
 ```bash
