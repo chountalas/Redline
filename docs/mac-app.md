@@ -27,7 +27,7 @@ brew install chountalas/tap/redline
 Install the Mac app:
 
 ```bash
-brew install --cask chountalas/tap/redline
+brew install --cask chountalas/tap/redline-app
 ```
 
 The cask installs `Redline.app` into `/Applications` and depends on the CLI formula. That keeps the GUI, CLI, and MCP server on the same validator engine.
