@@ -29,4 +29,4 @@ Run the Swift commands from `macos/RedlineMac`. Run the Python and safety comman
 
 ## Distribution State
 
-Homebrew is the supported public install path for the CLI and app. Public notarized app distribution should be cut with `./script/release.sh` before updating the cask. PyPI publication is not complete yet.
+Homebrew is the supported public install path for the CLI and app. Formula-only dependency changes can ship as a Homebrew revision. Public notarized app distribution should be cut with `./script/release.sh` before updating the cask version or URL. PyPI publication is not complete yet.

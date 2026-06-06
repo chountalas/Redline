@@ -358,7 +358,10 @@ def _create_openai_client(*, api_key: str, base_url: str | None = None) -> Any:
     try:
         from openai import OpenAI
     except ImportError as exc:  # pragma: no cover
-        raise ExtractionError("The openai package is required for provider=openai.") from exc
+        raise ExtractionError(
+            "OpenAI support is included in the Homebrew formula. From source, run: "
+            "uv sync --extra openai"
+        ) from exc
 
     if base_url:
         return OpenAI(api_key=api_key, base_url=base_url)
@@ -370,7 +373,8 @@ def _create_anthropic_client(api_key: str) -> Any:
         from anthropic import Anthropic
     except ImportError as exc:  # pragma: no cover
         raise ExtractionError(
-            "Install Anthropic support with: pip install 'redline-lease[anthropic]'"
+            "Anthropic support is included in the Homebrew formula. From source, run: "
+            "uv sync --extra anthropic"
         ) from exc
     return Anthropic(api_key=api_key)
 

@@ -10,7 +10,10 @@ def main() -> None:
     try:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover
-        raise SystemExit("Install MCP support with: pip install 'redline-lease[mcp]'") from exc
+        raise SystemExit(
+            "MCP support is included in the Homebrew formula. From source, run: "
+            "uv sync --extra mcp"
+        ) from exc
 
     mcp = FastMCP("redline")
 

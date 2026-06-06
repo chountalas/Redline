@@ -29,18 +29,12 @@ REDLINE_LLM_PROVIDER=codex
 
 ## OpenAI API
 
-OpenAI API is available separately and requires an API key plus an explicit current model.
+OpenAI API is available separately and requires an API key plus an explicit current model. The Homebrew formula includes the OpenAI provider adapter.
 
-Install optional OpenAI dependencies for a minimal install:
+From a source checkout, install optional OpenAI dependencies:
 
 ```bash
 uv sync --extra openai
-```
-
-After package publication:
-
-```bash
-pip install "redline-lease[openai]"
 ```
 
 ```bash
@@ -92,23 +86,17 @@ model returns JSON directly instead of spending the time/budget on chain-of-thou
 
 ## Optional: Anthropic
 
-Anthropic is not the default provider. Use it only when explicitly selected and an API key plus explicit current model are available.
+Anthropic is not the default provider. Use it only when explicitly selected and an API key plus explicit current model are available. The Homebrew formula includes the Anthropic provider adapter.
 
 ```bash
 export ANTHROPIC_API_KEY=...
 redline check lease.pdf --provider anthropic --model <anthropic-model>
 ```
 
-Install optional Anthropic dependencies for a minimal install:
+From a source checkout, install optional Anthropic dependencies:
 
 ```bash
 uv sync --extra anthropic
-```
-
-After package publication:
-
-```bash
-pip install "redline-lease[anthropic]"
 ```
 
 ## Common Environment Variables

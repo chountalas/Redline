@@ -2,7 +2,7 @@
 
 Redline includes a SwiftUI macOS wrapper for local review workflows. It is a shell over the Python CLI, not a separate validator.
 
-The public app install is the Homebrew cask. The source checkout can also build a development app bundle.
+The public app install is the Homebrew cask. It installs the app and the CLI formula, so the GUI, `redline`, and `redline-mcp` use the same validator engine. The source checkout can also build a development app bundle.
 
 ## Requirements
 
@@ -14,23 +14,36 @@ The public app install is the Homebrew cask. The source checkout can also build 
   - Codex CLI login for the default Codex provider
   - `OPENAI_API_KEY` for OpenAI API
   - Ollama running locally for Ollama
-  - `ANTHROPIC_API_KEY` plus the Anthropic extra for Anthropic
+  - `ANTHROPIC_API_KEY` for Anthropic
 
-## Install
+## Install Everything
+
+```bash
+brew install --cask chountalas/tap/redline-app
+```
+
+The cask installs `Redline.app` into `/Applications` and depends on the CLI formula. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
+
+Verify the install:
+
+```bash
+redline --version
+```
+
+Upgrade later:
+
+```bash
+brew upgrade chountalas/tap/redline
+brew upgrade --cask chountalas/tap/redline-app
+```
+
+## CLI Only
 
 Install the CLI:
 
 ```bash
 brew install chountalas/tap/redline
 ```
-
-Install the Mac app:
-
-```bash
-brew install --cask chountalas/tap/redline-app
-```
-
-The cask installs `Redline.app` into `/Applications` and depends on the CLI formula. That keeps the GUI, CLI, and MCP server on the same validator engine.
 
 ## Development Run
 

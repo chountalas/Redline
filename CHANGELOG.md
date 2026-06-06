@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Clarify Homebrew as the public install path for the app, CLI, MCP server, and provider adapters.
+- Replace future PyPI install guidance in docs and runtime errors with Homebrew/source-checkout instructions.
+
 ## 0.1.1 - 2026-06-04
 
 - Replace placeholder owner and bundle metadata with public release metadata.
