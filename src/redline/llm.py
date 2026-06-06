@@ -334,7 +334,7 @@ def _complete_anthropic(
             "ANTHROPIC_API_KEY or REDLINE_API_KEY is required for provider=anthropic."
         )
 
-    client = _create_anthropic_client(api_key)
+    client = _create_anthropic_client(api_key, base_url=config.base_url)
     response = client.messages.create(
         model=config.resolved_model,
         max_tokens=max_output_tokens,
@@ -354,28 +354,90 @@ def _complete_anthropic(
     return _anthropic_tool_input(response, schema_name)
 
 
+class _OpenAIHTTPClient:
+    def __init__(self, *, api_key: str, base_url: str | None = None) -> None:
+        self.responses = _OpenAIResponses(api_key=api_key, base_url=base_url)
+
+
+class _OpenAIResponses:
+    def __init__(self, *, api_key: str, base_url: str | None = None) -> None:
+        self._api_key = api_key
+        self._base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
+
+    def create(self, **payload: Any) -> dict[str, Any]:
+        return _post_json(
+            f"{self._base_url}/responses",
+            payload,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+        )
+
+
+class _AnthropicHTTPClient:
+    def __init__(self, *, api_key: str, base_url: str | None = None) -> None:
+        self.messages = _AnthropicMessages(api_key=api_key, base_url=base_url)
+
+
+class _AnthropicMessages:
+    def __init__(self, *, api_key: str, base_url: str | None = None) -> None:
+        self._api_key = api_key
+        self._base_url = (base_url or "https://api.anthropic.com/v1").rstrip("/")
+
+    def create(self, **payload: Any) -> dict[str, Any]:
+        return _post_json(
+            f"{self._base_url}/messages",
+            payload,
+            headers={
+                "x-api-key": self._api_key,
+                "anthropic-version": "2023-06-01",
+            },
+        )
+
+
 def _create_openai_client(*, api_key: str, base_url: str | None = None) -> Any:
+    return _OpenAIHTTPClient(api_key=api_key, base_url=base_url)
+
+
+def _create_anthropic_client(api_key: str, base_url: str | None = None) -> Any:
+    return _AnthropicHTTPClient(api_key=api_key, base_url=base_url)
+
+
+def _post_json(url: str, payload: dict[str, Any], *, headers: dict[str, str]) -> dict[str, Any]:
+    request_headers = {"Content-Type": "application/json", **headers}
+    req = request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers=request_headers,
+        method="POST",
+    )
     try:
-        from openai import OpenAI
-    except ImportError as exc:  # pragma: no cover
-        raise ExtractionError("The openai package is required for provider=openai.") from exc
-
-    if base_url:
-        return OpenAI(api_key=api_key, base_url=base_url)
-    return OpenAI(api_key=api_key)
-
-
-def _create_anthropic_client(api_key: str) -> Any:
-    try:
-        from anthropic import Anthropic
-    except ImportError as exc:  # pragma: no cover
-        raise ExtractionError(
-            "Install Anthropic support with: pip install 'redline-lease[anthropic]'"
-        ) from exc
-    return Anthropic(api_key=api_key)
+        with request.urlopen(req, timeout=180) as response:
+            response_body = response.read().decode("utf-8")
+    except error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace").strip()
+        raise ExtractionError(f"Provider request failed with HTTP {exc.code}: {detail}") from exc
+    except error.URLError as exc:
+        raise ExtractionError(f"Provider request failed: {exc}") from exc
+    except TimeoutError as exc:
+        raise ExtractionError("Provider request timed out.") from exc
+    return _loads_json_object(response_body)
 
 
 def _openai_response_text(response: Any) -> str:
+    if isinstance(response, dict):
+        output_text = response.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return output_text
+
+        dict_chunks: list[str] = []
+        for output in response.get("output", []):
+            if not isinstance(output, dict):
+                continue
+            for item in output.get("content", []):
+                if isinstance(item, dict) and isinstance(item.get("text"), str):
+                    dict_chunks.append(item["text"])
+        if dict_chunks:
+            return "\n".join(dict_chunks)
+
     output_text = getattr(response, "output_text", None)
     if isinstance(output_text, str) and output_text.strip():
         return output_text
@@ -392,11 +454,17 @@ def _openai_response_text(response: Any) -> str:
 
 
 def _anthropic_tool_input(response: Any, expected_tool_name: str) -> dict[str, Any]:
-    for block in getattr(response, "content", []):
-        block_type = getattr(block, "type", None)
-        block_name = getattr(block, "name", None)
+    if isinstance(response, dict):
+        content = response.get("content", [])
+    else:
+        content = getattr(response, "content", [])
+    for block in content:
+        block_type = block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+        block_name = block.get("name") if isinstance(block, dict) else getattr(block, "name", None)
         if block_type == "tool_use" and block_name == expected_tool_name:
-            raw_input = getattr(block, "input", None)
+            raw_input = (
+                block.get("input") if isinstance(block, dict) else getattr(block, "input", None)
+            )
             if not isinstance(raw_input, dict):
                 raise ExtractionError(f"{expected_tool_name} input must be a JSON object.")
             return cast(dict[str, Any], raw_input)

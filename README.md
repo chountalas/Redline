@@ -10,23 +10,37 @@ The first target is the expensive template error where rent was drafted as a fig
 
 ## Install
 
-With Homebrew:
-
-```bash
-brew install chountalas/tap/redline
-```
-
-This installs the CLI tools (`redline` and `redline-mcp`).
-
-For the Mac app:
+Install everything with Homebrew:
 
 ```bash
 brew install --cask chountalas/tap/redline-app
 ```
 
-The cask installs `Redline.app` into `/Applications` and depends on the CLI formula, so the GUI and terminal command use the same validator engine.
+That installs `Redline.app` into `/Applications` and installs the CLI formula as a dependency, so the app, `redline`, and `redline-mcp` all use the same validator engine. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
 
-From source:
+CLI and MCP tools only:
+
+```bash
+brew install chountalas/tap/redline
+```
+
+Verify the install:
+
+```bash
+redline --version
+redline --help
+```
+
+Upgrade later:
+
+```bash
+brew upgrade chountalas/tap/redline
+brew upgrade --cask chountalas/tap/redline-app
+```
+
+The Python package is not published to PyPI yet. Homebrew is the supported public install path.
+
+From source for development:
 
 ```bash
 git clone https://github.com/chountalas/Redline.git
@@ -35,68 +49,61 @@ uv sync --extra dev --extra mcp
 uv run redline check lease.pdf
 ```
 
-After the Python package is published, the intended package install is:
-
-```bash
-pip install redline-lease
-```
-
 ## Quickstart
 
 ```bash
-uv run redline check lease.pdf
+redline check lease.pdf
 ```
 
 Codex subscription is the default provider. It uses your local `codex` CLI login and does not require an API key:
 
 ```bash
-uv run redline check lease.pdf --provider codex
+redline check lease.pdf --provider codex
 ```
 
 OpenAI API is separate and requires an API key plus an explicit current model:
 
 ```bash
-uv sync --extra openai
 export OPENAI_API_KEY=...
-uv run redline check lease.pdf --provider openai --model <openai-model>
+redline check lease.pdf --provider openai --model <openai-model>
 ```
 
 Local Ollama runs do not require an API key:
 
 ```bash
 ollama pull gpt-oss:20b
-uv run redline check lease.pdf --provider ollama --model gpt-oss:20b --base-url http://localhost:11434
+redline check lease.pdf --provider ollama --model gpt-oss:20b --base-url http://localhost:11434
 ```
 
 Anthropic is available only when explicitly selected with an API key plus an explicit current model:
 
 ```bash
 export ANTHROPIC_API_KEY=...
-uv run redline check lease.pdf --provider anthropic --model <anthropic-model>
+redline check lease.pdf --provider anthropic --model <anthropic-model>
 ```
 
 Strict CI mode fails when a rule could not verify:
 
 ```bash
-uv run redline check lease.pdf --fail-on verify
+redline check lease.pdf --fail-on verify
 ```
 
 JSON output:
 
 ```bash
-uv run redline check lease.pdf --json
+redline check lease.pdf --json
 ```
 
 Draft-vs-deal validation:
 
 ```bash
-uv run redline check lease.pdf --deal deal.yaml
+redline check lease.pdf --deal deal.yaml
 ```
 
 Optional AI advisory focus, kept separate from deterministic findings:
 
 ```bash
-uv run redline check lease.pdf --context "Check that the rent matches the negotiated total economics."
+redline check lease.pdf --context "Check that the rent matches the negotiated total economics."
 ```
 
 ## Mac App
@@ -104,7 +111,7 @@ uv run redline check lease.pdf --context "Check that the rent matches the negoti
 Redline includes a SwiftUI macOS wrapper. It uses the same Python validator engine as the CLI.
 
 ```bash
-./script/build_and_run.sh
+brew install --cask chountalas/tap/redline-app
 ```
 
 To install a development build into `/Applications` from a source checkout:

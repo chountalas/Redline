@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "redline-lease"
-version = "0.1.1"
+version = "0.1.2"
 description = "Trustworthy commercial lease validation: LLM extraction, deterministic math checks."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -33,12 +33,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=2.8.0"]
-anthropic = ["anthropic>=0.40.0"]
 mcp = ["mcp>=1.9.0"]
 dev = [
-  "openai>=2.8.0",
-  "anthropic>=0.40.0",
   "mcp>=1.9.0",
   "mypy>=1.11.0",
   "pytest>=8.3.0",

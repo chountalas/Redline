@@ -1,15 +1,21 @@
 # MCP Server
 
+Homebrew installs the MCP server with the CLI:
+
+```bash
+brew install chountalas/tap/redline
+```
+
+Or install the Mac app, which depends on the CLI formula:
+
+```bash
+brew install --cask chountalas/tap/redline-app
+```
+
 From a source checkout, install the MCP extra:
 
 ```bash
 uv sync --extra mcp
-```
-
-After package publication, install with the MCP extra:
-
-```bash
-pip install "redline-lease[mcp]"
 ```
 
 Example client config:
@@ -26,7 +32,7 @@ Example client config:
 }
 ```
 
-For a package install, use `"command": "redline-mcp"` with no `cwd`.
+For a Homebrew install, use `"command": "redline-mcp"` with no `cwd`.
 
 You can also run the module directly:
 
