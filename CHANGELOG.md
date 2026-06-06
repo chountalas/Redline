@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 - 2026-06-06
 
 - Clarify Homebrew as the public install path for the app, CLI, MCP server, and provider adapters.
-- Replace future PyPI install guidance in docs and runtime errors with Homebrew/source-checkout instructions.
+- Replace future PyPI install guidance in docs with Homebrew/source-checkout instructions.
+- Use SDK-free HTTPS adapters for OpenAI and Anthropic so Homebrew installs do not need native SDK dependencies.
 
 ## 0.1.1 - 2026-06-04
 

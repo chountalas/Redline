@@ -262,6 +262,71 @@ def test_openai_provider_uses_generic_redline_api_key(
     assert result == {"ok": True}
 
 
+def test_openai_provider_uses_http_without_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[Any] = []
+
+    def fake_urlopen(req: Any, timeout: int) -> FakeHTTPResponse:
+        requests.append((req, timeout))
+        return FakeHTTPResponse({"output_text": json.dumps({"ok": True})})
+
+    monkeypatch.setattr("redline.llm.request.urlopen", fake_urlopen)
+
+    result = complete_structured(
+        config=LLMConfig(
+            provider="openai",
+            model="openai-test-model",
+            api_key="redline-key",
+            base_url="https://openai.test/v1",
+        ),
+        system="system",
+        prompt="prompt",
+        schema_name="test_schema",
+        schema=_OK_SCHEMA,
+        max_output_tokens=100,
+    )
+
+    body = json.loads(requests[0][0].data.decode("utf-8"))
+    assert requests[0][0].full_url == "https://openai.test/v1/responses"
+    assert requests[0][0].headers["Authorization"] == "Bearer redline-key"
+    assert body["model"] == "openai-test-model"
+    assert body["text"]["format"]["name"] == "test_schema"
+    assert result == {"ok": True}
+
+
+def test_anthropic_provider_uses_http_without_sdk(monkeypatch: pytest.MonkeyPatch) -> None:
+    requests: list[Any] = []
+
+    def fake_urlopen(req: Any, timeout: int) -> FakeHTTPResponse:
+        requests.append((req, timeout))
+        return FakeHTTPResponse(
+            {"content": [{"type": "tool_use", "name": "test_schema", "input": {"ok": True}}]}
+        )
+
+    monkeypatch.setattr("redline.llm.request.urlopen", fake_urlopen)
+
+    result = complete_structured(
+        config=LLMConfig(
+            provider="anthropic",
+            model="anthropic-test-model",
+            api_key="redline-key",
+            base_url="https://anthropic.test/v1",
+        ),
+        system="system",
+        prompt="prompt",
+        schema_name="test_schema",
+        schema=_OK_SCHEMA,
+        max_output_tokens=100,
+    )
+
+    body = json.loads(requests[0][0].data.decode("utf-8"))
+    assert requests[0][0].full_url == "https://anthropic.test/v1/messages"
+    assert requests[0][0].headers["X-api-key"] == "redline-key"
+    assert requests[0][0].headers["Anthropic-version"] == "2023-06-01"
+    assert body["model"] == "anthropic-test-model"
+    assert body["tools"][0]["name"] == "test_schema"
+    assert result == {"ok": True}
+
+
 def test_legacy_claude_model_env_does_not_affect_openai(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
