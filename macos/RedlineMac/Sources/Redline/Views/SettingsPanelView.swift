@@ -176,6 +176,7 @@ struct AddDocButton: View {
         } label: {
             Image(systemName: "plus")
         }
+        .disabled(ws.isRunning)
         .help("Check a new PDF")
         .accessibilityLabel("Check a new PDF")
     }

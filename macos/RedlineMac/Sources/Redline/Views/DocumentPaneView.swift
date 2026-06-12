@@ -40,12 +40,30 @@ func rlHighlight(_ body: String, fragments: [String], hl: Color, ink: Color) -> 
 
 // MARK: - Document pane
 
+private enum DocumentPaneMode: String, CaseIterable, Identifiable {
+    case evidence, source
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .evidence: "Evidence"
+        case .source: "Source"
+        }
+    }
+}
+
 struct DocumentPaneView: View {
     @Environment(\.rl) private var rl
     @Environment(Workspace.self) private var ws
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let doc: ReviewDoc
     var onClose: (() -> Void)? = nil
+    @State private var mode: DocumentPaneMode = .evidence
+
+    private var effectiveMode: DocumentPaneMode {
+        if doc.source != nil, doc.document.isEmpty { return .source }
+        if doc.source == nil { return .evidence }
+        return mode
+    }
 
     private var clauseToFinding: [String: ReviewFinding] {
         var map: [String: ReviewFinding] = [:]
@@ -67,10 +85,23 @@ struct DocumentPaneView: View {
         VStack(spacing: 0) {
             header
             Divider().overlay(rl.line)
-            ScrollViewReader { proxy in
-                ScrollView {
-                    Color.clear.frame(height: 0).id("rl-doc-top")
-                    VStack(alignment: .leading, spacing: 0) {
+            if effectiveMode == .source, let source = doc.source?.leasePDF {
+                sourcePane(source)
+            } else {
+                evidencePane
+            }
+        }
+        .background(rl.docBG)
+    }
+
+    private var evidencePane: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                Color.clear.frame(height: 0).id("rl-doc-top")
+                VStack(alignment: .leading, spacing: 0) {
+                    if doc.document.isEmpty {
+                        sourceFallback
+                    } else {
                         ForEach(Array(doc.document.enumerated()), id: \.element.page) { idx, page in
                             pageView(page, isFirst: idx == 0)
                         }
@@ -81,27 +112,25 @@ struct DocumentPaneView: View {
                             .frame(maxWidth: .infinity)
                             .padding(8)
                     }
-                    .frame(maxWidth: 640, alignment: .leading)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.horizontal, 26)
-                    .padding(.top, 18)
-                    .padding(.bottom, 50)
                 }
-                .onChange(of: ws.scrollTick) { _, _ in
-                    guard let active = ws.activeClause else { return }
-                    // Keep the scroll (functional), drop the smooth glide under reduce-motion.
-                    if reduceMotion {
-                        proxy.scrollTo(active, anchor: .top)
-                    } else {
-                        withAnimation(.easeOut(duration: 0.28)) { proxy.scrollTo(active, anchor: .top) }
-                    }
-                }
-                .onChange(of: doc.id) { _, _ in
-                    proxy.scrollTo("rl-doc-top", anchor: .top)
+                .frame(maxWidth: 640, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 26)
+                .padding(.top, 18)
+                .padding(.bottom, 50)
+            }
+            .onChange(of: ws.scrollTick) { _, _ in
+                guard let active = ws.activeClause else { return }
+                if reduceMotion {
+                    proxy.scrollTo(active, anchor: .top)
+                } else {
+                    withAnimation(.easeOut(duration: 0.28)) { proxy.scrollTo(active, anchor: .top) }
                 }
             }
+            .onChange(of: doc.id) { _, _ in
+                proxy.scrollTo("rl-doc-top", anchor: .top)
+            }
         }
-        .background(rl.docBG)
     }
 
     // MARK: header
@@ -118,6 +147,19 @@ struct DocumentPaneView: View {
                     .font(rl.ui(12)).foregroundStyle(rl.ink3)
             }
             Spacer(minLength: 8)
+            if doc.source != nil {
+                Picker("Document view", selection: Binding(
+                    get: { effectiveMode },
+                    set: { mode = $0 }
+                )) {
+                    ForEach(DocumentPaneMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 168)
+            }
             if let onClose {
                 Button(action: onClose) {
                     RLIcon("x", size: 15).foregroundStyle(rl.ink2)
@@ -132,6 +174,60 @@ struct DocumentPaneView: View {
         .padding(.horizontal, 22)
         .padding(.vertical, 12)
         .background(rl.win)
+    }
+
+    @ViewBuilder
+    private func sourcePane(_ url: URL) -> some View {
+        switch SourcePDFState.state(for: url) {
+        case .available(let url):
+            PDFSourceView(url: url)
+                .background(Color(nsColor: .textBackgroundColor))
+        case .missing:
+            missingSourceView
+        }
+    }
+
+    private var missingSourceView: some View {
+        VStack(spacing: 12) {
+            RLIcon("doc", size: 28).foregroundStyle(rl.ink3)
+            Text("Source PDF not found")
+                .font(rl.serif(20, .medium))
+                .foregroundStyle(rl.ink)
+            Text("Replace the source PDF from the document menu, then re-check.")
+                .font(rl.ui(13))
+                .foregroundStyle(rl.ink3)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(40)
+    }
+
+    private var sourceFallback: some View {
+        VStack(spacing: 12) {
+            RLIcon("doc", size: 28).foregroundStyle(rl.ink3)
+            Text("No cited clauses")
+                .font(rl.serif(20, .medium))
+                .foregroundStyle(rl.ink)
+            Text("Open the source PDF to review the full lease.")
+                .font(rl.ui(13))
+                .foregroundStyle(rl.ink3)
+            if let source = doc.source?.leasePDF {
+                Button {
+                    ws.openSourcePage(source, page: 1)
+                } label: {
+                    HStack(spacing: 7) {
+                        RLIcon("doc", size: 13)
+                        Text("Open source PDF").font(rl.ui(13, .semibold))
+                    }
+                    .foregroundStyle(rl.win)
+                    .padding(.horizontal, 13).padding(.vertical, 8)
+                    .background(rl.ink, in: RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 260)
+        .padding(.vertical, 40)
     }
 
     // MARK: page
@@ -204,6 +300,22 @@ private struct ClauseRow: View {
     @State private var hovering = false
 
     var body: some View {
+        Group {
+            if clickable {
+                Button(action: onTap) {
+                    rowContent
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(clause.title), section \(clause.num)")
+                .accessibilityHint("Shows the related finding")
+            } else {
+                rowContent
+            }
+        }
+        .onHover { if clickable { hovering = $0 } }
+    }
+
+    private var rowContent: some View {
         HStack(alignment: .top, spacing: 15) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("§\(clause.num)")
@@ -227,8 +339,6 @@ private struct ClauseRow: View {
         .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 11))
         .contentShape(Rectangle())
-        .onTapGesture { if clickable { onTap() } }
-        .onHover { if clickable { hovering = $0 } }
     }
 
     @ViewBuilder private var clauseText: some View {

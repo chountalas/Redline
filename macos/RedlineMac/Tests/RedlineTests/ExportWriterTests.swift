@@ -27,4 +27,25 @@ final class ExportWriterTests: XCTestCase {
         let stamped = ExportWriter.renderMemo(doc: SampleData.idylwyld, reviewer: "Reviewer", dateStamp: "2026-06-03")
         XCTAssertTrue(stamped.contains("Reviewed by Reviewer on 2026-06-03"))
     }
+
+    func testWriteMemoReturnsWrittenURL() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("redline-export-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let url = dir.appendingPathComponent("memo.md")
+        let written = try ExportWriter.writeMemo(doc: SampleData.documents[0], to: url)
+
+        XCTAssertEqual(written, url)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    func testWriteMemoSurfacesWriteFailures() {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("redline-export-missing-\(UUID().uuidString)", isDirectory: true)
+        let url = dir.appendingPathComponent("memo.md")
+
+        XCTAssertThrowsError(try ExportWriter.writeMemo(doc: SampleData.documents[0], to: url))
+    }
 }

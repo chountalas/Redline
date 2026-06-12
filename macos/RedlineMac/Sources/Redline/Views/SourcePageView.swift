@@ -15,30 +15,66 @@ struct SourcePageView: View {
             }
             .padding(12)
             Divider()
-            PDFKitPage(url: request.url, pageIndex: request.page)
+            switch SourcePDFState.state(for: request.url) {
+            case .available(let url):
+                PDFSourceView(url: url, pageIndex: request.page)
+            case .missing:
+                VStack(spacing: 10) {
+                    Image(systemName: "doc.badge.questionmark")
+                        .font(.system(size: 34))
+                        .foregroundStyle(.secondary)
+                    Text("Source PDF not found")
+                        .font(.headline)
+                    Text("The original PDF was moved or deleted. Replace the source PDF from the document menu, then re-check.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 420)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .frame(minWidth: 640, idealWidth: 760, minHeight: 640, idealHeight: 840)
     }
 }
 
-private struct PDFKitPage: NSViewRepresentable {
+struct PDFSourceView: NSViewRepresentable {
     let url: URL
-    let pageIndex: Int   // 1-based cited page
+    var pageIndex: Int? = nil   // 1-based cited page
+
+    final class Coordinator {
+        var loadedPath: String?
+        var loadedPageIndex: Int?
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
 
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
         view.displayMode = .singlePageContinuous
-        if let document = PDFDocument(url: url) {
-            view.document = document
-            let target = document.page(at: max(0, pageIndex - 1))
-            if let target {
-                // defer so the view has its document laid out before scrolling
-                DispatchQueue.main.async { view.go(to: target) }
-            }
-        }
+        update(view, context: context)
         return view
     }
 
-    func updateNSView(_ nsView: PDFView, context: Context) {}
+    func updateNSView(_ nsView: PDFView, context: Context) {
+        update(nsView, context: context)
+    }
+
+    private func update(_ view: PDFView, context: Context) {
+        let path = url.standardizedFileURL.path
+        if context.coordinator.loadedPath != path {
+            view.document = PDFDocument(url: url)
+            context.coordinator.loadedPath = path
+            context.coordinator.loadedPageIndex = nil
+        }
+
+        guard let pageIndex,
+              context.coordinator.loadedPageIndex != pageIndex,
+              let target = view.document?.page(at: max(0, pageIndex - 1)) else { return }
+        context.coordinator.loadedPageIndex = pageIndex
+        DispatchQueue.main.async { view.go(to: target) }
+    }
 }

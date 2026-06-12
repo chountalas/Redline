@@ -1,6 +1,6 @@
 import Foundation
 
-enum FailOn: String, CaseIterable, Identifiable, Codable {
+enum FailOn: String, CaseIterable, Identifiable, Codable, Sendable {
     case error
     case warn
     case verify
@@ -18,7 +18,7 @@ enum FailOn: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-enum LLMProvider: String, CaseIterable, Identifiable, Codable {
+enum LLMProvider: String, CaseIterable, Identifiable, Codable, Sendable {
     case codex
     case openai
     case ollama

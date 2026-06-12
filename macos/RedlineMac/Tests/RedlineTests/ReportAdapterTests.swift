@@ -50,4 +50,26 @@ final class ReportAdapterTests: XCTestCase {
         XCTAssertTrue(doc.dealTerms.isEmpty)
         XCTAssertFalse(doc.deal, "no deal sheet and no deal terms → not deal-aware")
     }
+
+    func testDocumentNameUsesOriginalLeaseNameInsteadOfImportedStorageName() throws {
+        let json = """
+        {
+          "facts_summary": {"source_file":"3E4F-storage-lease.pdf","page_count":1},
+          "deterministic_findings": [],
+          "advisory_findings": [],
+          "could_not_verify": [],
+          "summary": {"error":0,"warn":0,"info":0,"could_not_verify":0,"advisory":0},
+          "exit_code": 0
+        }
+        """.data(using: .utf8)!
+        let report = try JSONDecoder().decode(CheckReport.self, from: json)
+        var src = RunSource(leasePDF: URL(fileURLWithPath: "/tmp/Imported Sources/3E4F-storage-lease.pdf"),
+                            dealSheet: nil, context: "", failOn: .error, provider: .codex,
+                            model: "m", baseURL: "u", apiKey: "", thread: "")
+        src.originalLeaseFilename = "original lease.pdf"
+
+        let doc = ReportAdapter.makeDoc(from: report, source: src, id: "named")
+
+        XCTAssertEqual(doc.name, "original lease")
+    }
 }

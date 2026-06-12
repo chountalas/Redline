@@ -110,6 +110,10 @@ enum ReportAdapter {
     // MARK: helpers
 
     private static func documentName(from source: RunSource, fallback: String?) -> String {
+        if let filename = source.originalLeaseFilename?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !filename.isEmpty {
+            return (filename as NSString).deletingPathExtension
+        }
         let stem = source.leasePDF.deletingPathExtension().lastPathComponent
         if !stem.isEmpty { return stem }
         if let fallback, !fallback.isEmpty {

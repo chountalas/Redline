@@ -1,6 +1,12 @@
 import AppKit
 import UniformTypeIdentifiers
 
+enum ExportSaveResult: Equatable {
+    case written(URL)
+    case cancelled
+    case failed(String)
+}
+
 /// Renders a reviewed document into a cited Markdown review memo — the exportable artifact.
 /// Pure (no IO) so it's unit-testable; `ExportWriter.save` (Task 2.4) writes it via NSSavePanel.
 enum ExportWriter {
@@ -59,22 +65,30 @@ enum ExportWriter {
 }
 
 extension ExportWriter {
-    /// Presents an NSSavePanel and writes the memo as Markdown. Returns true if a file was
-    /// written, false if the user cancelled or the write failed (so the caller only shows
-    /// the "Exported" confirmation on a real save).
+    static func writeMemo(
+        doc: ReviewDoc,
+        to url: URL,
+        reviewer: String? = nil,
+        dateStamp: String? = nil
+    ) throws -> URL {
+        try renderMemo(doc: doc, reviewer: reviewer, dateStamp: dateStamp)
+            .write(to: url, atomically: true, encoding: .utf8)
+        return url
+    }
+
+    /// Presents an NSSavePanel and writes the memo as Markdown. Cancel is distinct from a
+    /// write failure so the UI can stay quiet on cancel and show a real error on failure.
     @MainActor
-    static func save(doc: ReviewDoc, reviewer: String? = nil, dateStamp: String? = nil) -> Bool {
+    static func save(doc: ReviewDoc, reviewer: String? = nil, dateStamp: String? = nil) -> ExportSaveResult {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "\(doc.name) — review.md"
         panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
         panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return false }
+        guard panel.runModal() == .OK, let url = panel.url else { return .cancelled }
         do {
-            try renderMemo(doc: doc, reviewer: reviewer, dateStamp: dateStamp)
-                .write(to: url, atomically: true, encoding: .utf8)
-            return true
+            return .written(try writeMemo(doc: doc, to: url, reviewer: reviewer, dateStamp: dateStamp))
         } catch {
-            return false
+            return .failed(error.localizedDescription)
         }
     }
 }

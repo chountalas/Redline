@@ -191,6 +191,23 @@ struct RedlineRunner {
     }
 }
 
+protocol RedlineRunning {
+    func run(
+        leasePDF: URL,
+        dealSheet: URL?,
+        context: String,
+        failOn: FailOn,
+        provider: LLMProvider,
+        model: String,
+        baseURL: String,
+        apiKey: String,
+        thread: String,
+        onLaunch: @Sendable (Process) -> Void
+    ) async throws -> CheckReport
+}
+
+extension RedlineRunner: RedlineRunning {}
+
 extension RedlineRunner {
     /// Parse the engine's `{"error":{"code","message"}}` stdout envelope (Phase 2) into a
     /// typed error, or nil if the bytes aren't that envelope. Static + pure so it's unit-testable.

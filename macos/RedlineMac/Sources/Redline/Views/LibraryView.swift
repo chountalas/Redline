@@ -141,6 +141,7 @@ private struct DocRow: View {
         // shows no status text, so combine alone would not speak status — add it explicitly.
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(d.name), \(d.kind), \(st.word)")
+        .contextMenu { DocumentActionsMenu(doc: d) }
     }
 }
 
@@ -207,6 +208,7 @@ struct DocSwitcher: View {
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("\(d.name), \(s.word)")
                     .accessibilityAddTraits(d.id == ws.selectedDocID ? .isSelected : [])
+                    .contextMenu { DocumentActionsMenu(doc: d) }
                 }
             }
             Divider().overlay(rl.line).padding(.vertical, 5)
@@ -220,6 +222,7 @@ struct DocSwitcher: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(ws.isRunning)
         }
         .frame(width: 300)
         .padding(6)

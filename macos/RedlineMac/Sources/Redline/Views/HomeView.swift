@@ -106,6 +106,7 @@ private struct CheckLeaseButton: View {
             .scaleEffect(hover && !reduceMotion ? 1.02 : 1)
         }
         .buttonStyle(.plain)
+        .disabled(ws.isRunning)
         .onHover { hover = $0 }
         .animation(.easeOut(duration: 0.15), value: hover)
     }
@@ -156,6 +157,7 @@ private struct HomeDocCard: View {
         // (from docStatus) into the label or it would be silent.
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(d.kind), \(d.name), \(st.word)")
+        .contextMenu { DocumentActionsMenu(doc: d) }
     }
 }
 

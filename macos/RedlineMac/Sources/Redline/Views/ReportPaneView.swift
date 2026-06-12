@@ -12,6 +12,7 @@ struct ReportPaneView: View {
     @State private var passOpen = false
     @State private var termsOpen = false
     @State private var exported = false
+    @State private var exportError: String?
 
     private var attention: [ReviewFinding] {
         doc.findings.filter { $0.bucket == .problem || $0.bucket == .warn }
@@ -47,6 +48,14 @@ struct ReportPaneView: View {
         .background(rl.win)
         .sheet(item: $ws.sourcePageRequest) { req in
             SourcePageView(request: req) { ws.sourcePageRequest = nil }
+        }
+        .alert("Export failed", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("OK", role: .cancel) { exportError = nil }
+        } message: {
+            Text(exportError ?? "")
         }
     }
 
@@ -130,13 +139,15 @@ struct ReportPaneView: View {
     private var exportButton: some View {
         let cleared = ws.allErrorsCleared(doc)
         return Button {
-            let written = ExportWriter.save(
+            let result = ExportWriter.save(
                 doc: doc,
                 reviewer: cleared ? NSFullUserName() : nil,
                 dateStamp: cleared ? Date.now.formatted(date: .abbreviated, time: .omitted) : nil)
-            if written {
+            if case .written = result {
                 exported = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) { exported = false }
+            } else if case .failed(let message) = result {
+                exportError = message
             }
         } label: {
             HStack(spacing: 7) {

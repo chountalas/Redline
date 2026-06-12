@@ -120,8 +120,9 @@ struct Verdict: Codable {
 }
 
 /// Inputs captured for an engine-backed document so "Re-check" can re-run it.
-struct RunSource: Codable {
+struct RunSource: Codable, Sendable {
     var leasePDF: URL
+    var originalLeaseFilename: String? = nil
     var dealSheet: URL?
     var context: String
     var failOn: FailOn
@@ -132,7 +133,7 @@ struct RunSource: Codable {
     var thread: String = ""   // negotiation thread; persisted (unlike apiKey)
 
     private enum CodingKeys: String, CodingKey {
-        case leasePDF, dealSheet, context, failOn, provider, model, baseURL, thread
+        case leasePDF, originalLeaseFilename, dealSheet, context, failOn, provider, model, baseURL, thread
         // apiKey deliberately excluded — the API key is never written to disk
     }
 }
@@ -145,6 +146,7 @@ extension RunSource {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         leasePDF = try c.decode(URL.self, forKey: .leasePDF)
+        originalLeaseFilename = try c.decodeIfPresent(String.self, forKey: .originalLeaseFilename)
         dealSheet = try c.decodeIfPresent(URL.self, forKey: .dealSheet)
         context = try c.decode(String.self, forKey: .context)
         failOn = try c.decode(FailOn.self, forKey: .failOn)
