@@ -71,6 +71,37 @@ final class CodableTests: XCTestCase {
         XCTAssertEqual(restored.apiKey, "")
     }
 
+    func testRunSourceDecodesLegacySnapshotMissingOriginalLeaseFilename() throws {
+        var src = RunSource(
+            leasePDF: URL(fileURLWithPath: "/tmp/x.pdf"), dealSheet: nil, context: "",
+            failOn: .error, provider: .codex, model: "m", baseURL: "u",
+            apiKey: "sk-SECRET", thread: "x")
+        src.originalLeaseFilename = "x.pdf"
+        let data = try JSONEncoder().encode(src)
+        var obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        obj.removeValue(forKey: "originalLeaseFilename")
+        let legacy = try JSONSerialization.data(withJSONObject: obj)
+        let restored = try JSONDecoder().decode(RunSource.self, from: legacy)
+        XCTAssertNil(restored.originalLeaseFilename)
+        XCTAssertEqual(restored.apiKey, "")
+    }
+
+    func testRunSourceOriginalLeaseFilenamePersistsButKeyDoesNot() throws {
+        var src = RunSource(
+            leasePDF: URL(fileURLWithPath: "/tmp/imported.pdf"), dealSheet: nil, context: "",
+            failOn: .error, provider: .codex, model: "m", baseURL: "u",
+            apiKey: "sk-SECRET", thread: "")
+        src.originalLeaseFilename = "Original Lease.pdf"
+
+        let data = try JSONEncoder().encode(src)
+        let json = String(data: data, encoding: .utf8) ?? ""
+        XCTAssertTrue(json.contains("Original Lease.pdf"))
+        XCTAssertFalse(json.contains("sk-SECRET"))
+        let back = try JSONDecoder().decode(RunSource.self, from: data)
+        XCTAssertEqual(back.originalLeaseFilename, "Original Lease.pdf")
+        XCTAssertEqual(back.apiKey, "")
+    }
+
     func testRunSourceThreadPersistsButKeyDoesNot() throws {
         let src = RunSource(
             leasePDF: URL(fileURLWithPath: "/tmp/x.pdf"), dealSheet: nil, context: "",
@@ -83,5 +114,11 @@ final class CodableTests: XCTestCase {
         let back = try JSONDecoder().decode(RunSource.self, from: data)
         XCTAssertEqual(back.thread, "we agreed $600k")
         XCTAssertEqual(back.apiKey, "")
+    }
+
+    func testDealContextDoesNotSaveThreadByDefault() {
+        let context = DealContext(thread: "negotiated terms")
+
+        XCTAssertFalse(context.saveThread)
     }
 }

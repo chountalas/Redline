@@ -31,6 +31,7 @@ struct RunFailure: Equatable {
         // String checks precede case checks: scanned-PDF and auth failures both arrive wrapped
         // as .processFailed, so their messages must be inspected before the case-based fallbacks.
         if low.contains("no extractable text") || low.contains("scanned") { cause = .scannedPDF }
+        else if low.contains("could not import") { cause = .badInput }
         else if error is RedlineRunError, case .processLaunchFailed = (error as! RedlineRunError) { cause = .toolingMissing }
         else if low.contains("api key") || low.contains("unauthorized") || low.contains("401") { cause = .auth }
         else if error is RedlineRunError, case .invalidJSON = (error as! RedlineRunError) { cause = .badOutput }

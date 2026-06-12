@@ -5,4 +5,5 @@ struct DealContext: Codable, Equatable {
     var thread: String = ""
     var dealSheet: URL? = nil
     var context: String = ""
+    var saveThread: Bool = false
 }

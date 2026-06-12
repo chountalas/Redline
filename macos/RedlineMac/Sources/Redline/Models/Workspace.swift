@@ -23,6 +23,11 @@ struct SourcePageRequest: Identifiable {
     let page: Int
 }
 
+struct PendingRunRetry {
+    var source: RunSource
+    var saveThread: Bool
+}
+
 /// Owns everything the three panes share: the library, the selected document, the
 /// bidirectional report↔document sync, per-document review/notes, the re-check
 /// animation, the live engine run, and the settings (the old design-host "Tweaks").
@@ -49,7 +54,7 @@ final class Workspace {
 
     // Inputs of the last failed run, so the error view's Retry can re-open the sheet pre-filled.
     // Transient: never persisted (mirrors sourcePageRequest).
-    var pendingRetry: RunSource?
+    var pendingRetry: PendingRunRetry?
 
     // per-document review state, keyed "docID:findingID"
     var reviewed: [String: Bool] = [:]
@@ -86,17 +91,22 @@ final class Workspace {
     var showSettingsPanel: Bool = false
 
     func openRunSheet() {
+        guard !run.isRunning else {
+            showSettingsPanel = false
+            return
+        }
         showSettingsPanel = false
         showRunSheet = true
     }
 
-    private let runner: RedlineRunner
+    private let runner: any RedlineRunning
     private var checkTask: Task<Void, Never>?
     private let storeURL: URL
 
-    init(storeURL: URL = LibraryStore.defaultURL()) {
+    init(storeURL: URL = LibraryStore.defaultURL(), runner: (any RedlineRunning)? = nil) {
         self.storeURL = storeURL
-        runner = RedlineRunner(repoRoot: RedlineRunner.defaultRepoRoot())
+        self.runner = runner ?? RedlineRunner(repoRoot: RedlineRunner.defaultRepoRoot())
+        let storeExistedBeforeLoad = FileManager.default.fileExists(atPath: storeURL.path)
         // Restore the library if a snapshot exists; otherwise open to the first-run invite.
         if let snap = LibraryStore.load(from: storeURL) {
             documents = snap.documents
@@ -104,10 +114,14 @@ final class Workspace {
             selectedDocID = snap.selectedDocID
             reviewed = snap.reviewed
             notes = snap.notes
+            sweepUnreferencedImportedSources()
         } else {
             documents = []
             groups = []
             selectedDocID = ""
+            if !storeExistedBeforeLoad {
+                sweepUnreferencedImportedSources()
+            }
         }
         restoreSettings()
     }
@@ -151,6 +165,7 @@ final class Workspace {
     }
 
     func selectDoc(_ id: String) {
+        guard !run.isRunning else { return }
         guard let d = doc(id) else { return }
         checkTask?.cancel()
         run = .idle
@@ -163,6 +178,7 @@ final class Workspace {
 
     /// Return to the home dashboard, stopping any in-flight re-check animation.
     func goHome() {
+        guard !run.isRunning else { return }
         checkTask?.cancel()
         run = .idle
         docOpen = false
@@ -205,7 +221,7 @@ final class Workspace {
 
     func allErrorsCleared(_ doc: ReviewDoc) -> Bool {
         let problems = doc.findings.filter { $0.severity == .error }
-        return !problems.isEmpty && problems.allSatisfy { reviewed[selectedDocID + ":" + $0.id] ?? false }
+        return !problems.isEmpty && problems.allSatisfy { reviewed[doc.id + ":" + $0.id] ?? false }
     }
 
     // MARK: re-check
@@ -220,7 +236,7 @@ final class Workspace {
         }
         var src = source
         src.apiKey = apiKey   // live key from Settings; persisted source.apiKey is "" after relaunch
-        runTask = Task { await runEngine(source: src, replacingDocID: doc.id) }
+        runTask = Task { await runEngine(source: src, replacingDocID: doc.id, persistThread: !src.thread.isEmpty) }
     }
 
     private func playCheckingAnimation() {
@@ -243,14 +259,30 @@ final class Workspace {
 
     /// Start a run from the modal. Provider/model/key come from the persistent AI config
     /// (Settings), not the modal — the modal only supplies the document inputs.
-    func startRun(leasePDF: URL, deal: DealContext) {
+    func startRun(leasePDF: URL, deal: DealContext, originalLeaseFilename: String? = nil) {
         guard !run.isRunning else { return }
-        showRunSheet = false
-        let source = RunSource(
+        var source = RunSource(
             leasePDF: leasePDF, dealSheet: deal.dealSheet, context: deal.context,
             failOn: .error, provider: provider, model: model,
             baseURL: baseURL, apiKey: apiKey, thread: deal.thread)
-        runTask = Task { await runEngine(source: source, replacingDocID: nil) }
+        source.originalLeaseFilename = cleanOriginalLeaseFilename(originalLeaseFilename) ?? leasePDF.lastPathComponent
+        discardPendingRetry(preserving: source)
+        let preflight = RunPreflight.validate(
+            leasePDF: leasePDF, dealSheet: deal.dealSheet,
+            provider: provider, model: model, baseURL: baseURL, apiKey: apiKey)
+        guard preflight.canRun else {
+            pendingRetry = PendingRunRetry(source: source, saveThread: deal.saveThread)
+            let message = preflight.message ?? "Redline could not start this check."
+            run = .failed(RunFailure(cause: .badInput, guidance: message, raw: message))
+            return
+        }
+        showRunSheet = false
+        runTask = Task { await runEngine(source: source, replacingDocID: nil, persistThread: deal.saveThread) }
+    }
+
+    func cancelRunSheet() {
+        discardPendingRetry()
+        showRunSheet = false
     }
 
     func cancelRun() {
@@ -259,6 +291,7 @@ final class Workspace {
         runTask?.cancel()
         checkTask?.cancel()
         runProcess = nil
+        showRunSheet = false
         run = .idle
     }
 
@@ -271,14 +304,26 @@ final class Workspace {
 
     /// Dismiss the error without retrying; drop the retained inputs.
     func dismissFailure() {
+        discardPendingRetry()
         run = .idle
-        pendingRetry = nil
     }
 
-    private func runEngine(source: RunSource, replacingDocID: String?) async {
+    private func runEngine(source: RunSource, replacingDocID: String?, persistThread: Bool) async {
         cancelRequested = false
         pendingRetry = nil
         run = .running(step: 0)
+        var retrySource = source
+
+        let prepared: PreparedRunSource
+        do {
+            prepared = try RunSourceFileStore.prepare(source, storeURL: storeURL, persistThread: persistThread)
+            retrySource = prepared.runtime
+            cleanupSourceFiles(from: source, preserving: prepared.runtime)
+        } catch {
+            run = .failed(RunFailure.map(error))
+            pendingRetry = PendingRunRetry(source: source, saveThread: persistThread)
+            return
+        }
 
         // Advance the animation while the engine works (cap before the final step).
         let stepper = Task { [weak self] in
@@ -292,15 +337,15 @@ final class Workspace {
 
         do {
             let report = try await runner.run(
-                leasePDF: source.leasePDF,
-                dealSheet: source.dealSheet,
-                context: source.context,
-                failOn: source.failOn,
-                provider: source.provider,
-                model: source.model,
-                baseURL: source.baseURL,
-                apiKey: source.apiKey,
-                thread: source.thread,
+                leasePDF: prepared.runtime.leasePDF,
+                dealSheet: prepared.runtime.dealSheet,
+                context: prepared.runtime.context,
+                failOn: prepared.runtime.failOn,
+                provider: prepared.runtime.provider,
+                model: prepared.runtime.model,
+                baseURL: prepared.runtime.baseURL,
+                apiKey: prepared.runtime.apiKey,
+                thread: prepared.runtime.thread,
                 onLaunch: { [weak self] process in
                     Task { @MainActor in
                         guard let self else { return }
@@ -316,7 +361,11 @@ final class Workspace {
             runProcess = nil
             run = .running(step: CHECK_STEPS.count)
             let id = replacingDocID ?? "run:\(UUID().uuidString.prefix(8))"
-            let newDoc = ReportAdapter.makeDoc(from: report, source: source, id: String(id))
+            var newDoc = ReportAdapter.makeDoc(from: report, source: prepared.persisted, id: String(id))
+            if let replacingDocID,
+               let existing = documents.first(where: { $0.id == replacingDocID }) {
+                newDoc.name = existing.name
+            }
             replaceOrAddDoc(newDoc)
             selectedDocID = newDoc.id
             resetSelection(for: newDoc)
@@ -326,9 +375,17 @@ final class Workspace {
         } catch {
             stepper.cancel()
             runProcess = nil
-            if error is CancellationError { run = .idle }
-            else if case RedlineRunError.cancelled = error { run = .idle }
-            else { pendingRetry = source; run = .failed(RunFailure.map(error)) }
+            if error is CancellationError {
+                cleanupSourceFiles(from: prepared.runtime)
+                run = .idle
+            } else if case RedlineRunError.cancelled = error {
+                cleanupSourceFiles(from: prepared.runtime)
+                run = .idle
+            }
+            else {
+                pendingRetry = PendingRunRetry(source: retrySource, saveThread: persistThread)
+                run = .failed(RunFailure.map(error))
+            }
         }
     }
 
@@ -344,6 +401,123 @@ final class Workspace {
         } else {
             groups.append(DocGroup(id: "yours", label: "Your documents", ids: [doc.id]))
         }
+    }
+
+    func deleteDoc(_ id: String) {
+        guard !run.isRunning else { return }
+        guard let idx = documents.firstIndex(where: { $0.id == id }) else { return }
+        let removed = documents[idx]
+        documents.remove(at: idx)
+        groups = groups.map { group in
+            var group = group
+            group.ids.removeAll { $0 == id }
+            return group
+        }
+        reviewed = reviewed.filter { !$0.key.hasPrefix("\(id):") }
+        notes = notes.filter { !$0.key.hasPrefix("\(id):") }
+
+        if selectedDocID == id {
+            if documents.isEmpty {
+                selectedDocID = ""
+                selFindingID = nil
+                activeClause = nil
+                screen = .home
+                docOpen = false
+            } else {
+                let next = documents[min(idx, documents.count - 1)]
+                selectedDocID = next.id
+                resetSelection(for: next)
+            }
+        }
+        cleanupSourceFiles(from: removed.source)
+        persist()
+    }
+
+    func renameDoc(_ id: String, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let idx = documents.firstIndex(where: { $0.id == id }) else { return }
+        documents[idx].name = trimmed
+        persist()
+    }
+
+    func replaceSourcePDF(for id: String, with url: URL) throws {
+        guard !run.isRunning else { return }
+        guard let idx = documents.firstIndex(where: { $0.id == id }),
+              var source = documents[idx].source else { return }
+        let oldSource = source
+        source.leasePDF = try RunSourceFileStore.importLeasePDF(url, storeURL: storeURL)
+        source.originalLeaseFilename = url.lastPathComponent
+        source.apiKey = ""
+        documents[idx].source = source
+        documents[idx].name = url.deletingPathExtension().lastPathComponent
+        cleanupSourceFiles(from: oldSource)
+        persist()
+    }
+
+    private func discardPendingRetry(preserving preservedSource: RunSource? = nil) {
+        cleanupSourceFiles(from: pendingRetry?.source, preserving: preservedSource)
+        pendingRetry = nil
+    }
+
+    private func cleanupSourceFiles(from source: RunSource?, preserving preservedSource: RunSource? = nil) {
+        guard let source else { return }
+        var urls = [source.leasePDF]
+        if let dealSheet = source.dealSheet { urls.append(dealSheet) }
+        let preservedPaths = Set(sourceURLs(from: preservedSource).map { $0.standardizedFileURL.path })
+
+        for url in urls {
+            let isImportedSource = RunSourceFileStore.isImportedSource(url, storeURL: storeURL)
+            let isDroppedTemp = RunSheetFileIntake.isTemporaryDroppedPDF(url)
+            guard isImportedSource || isDroppedTemp else { continue }
+
+            let path = url.standardizedFileURL.path
+            let stillReferenced = documents.contains { doc in
+                guard let source = doc.source else { return false }
+                if source.leasePDF.standardizedFileURL.path == path { return true }
+                if source.dealSheet?.standardizedFileURL.path == path { return true }
+                return false
+            } || preservedPaths.contains(path)
+            if !stillReferenced {
+                if isDroppedTemp {
+                    RunSheetFileIntake.removeTemporaryDroppedPDF(url)
+                } else {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+        }
+    }
+
+    private func sweepUnreferencedImportedSources() {
+        let imports = RunSourceFileStore.importsDirectory(forStoreURL: storeURL)
+        guard let urls = try? FileManager.default.contentsOfDirectory(
+            at: imports,
+            includingPropertiesForKeys: [.isDirectoryKey]
+        ) else { return }
+        let referencedPaths = Set(documents.flatMap { sourceURLs(from: $0.source) }
+            .filter { RunSourceFileStore.isImportedSource($0, storeURL: storeURL) }
+            .map { $0.standardizedFileURL.path })
+
+        for url in urls {
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+            guard values?.isDirectory != true else { continue }
+            let path = url.standardizedFileURL.path
+            if !referencedPaths.contains(path) {
+                try? FileManager.default.removeItem(at: url)
+            }
+        }
+    }
+
+    private func sourceURLs(from source: RunSource?) -> [URL] {
+        guard let source else { return [] }
+        var urls = [source.leasePDF]
+        if let dealSheet = source.dealSheet { urls.append(dealSheet) }
+        return urls
+    }
+
+    private func cleanOriginalLeaseFilename(_ filename: String?) -> String? {
+        let trimmed = filename?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: persistence

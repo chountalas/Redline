@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -13,15 +14,22 @@ struct RunSheet: View {
     @Environment(Workspace.self) private var ws
 
     @State private var leasePDF: URL?
+    @State private var originalLeaseFilename: String?
+    @State private var temporaryLeasePDF: URL?
     @State private var dealSheet: URL?
     @State private var context = ""
     @State private var thread = ""
-    @State private var pdfImporter = false
-    @State private var dealImporter = false
+    @State private var saveThread = false
     @State private var focusOpen = false
     @State private var dropTargeted = false
     @State private var threadDropTargeted = false
     @State private var providerOpen = false
+
+    private var preflight: RunPreflightResult {
+        RunPreflight.validate(
+            leasePDF: leasePDF, dealSheet: dealSheet,
+            provider: ws.provider, model: ws.model, baseURL: ws.baseURL, apiKey: ws.apiKey)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -37,19 +45,19 @@ struct RunSheet: View {
         .padding(22)
         .frame(width: 460)
         .background(rl.win)
-        .fileImporter(isPresented: $pdfImporter, allowedContentTypes: [.pdf]) { result in
-            if case .success(let url) = result { leasePDF = url }
-        }
-        .fileImporter(isPresented: $dealImporter, allowedContentTypes: [.yaml, .data]) { result in
-            if case .success(let url) = result { dealSheet = url }
-        }
         .onAppear {
-            if let s = ws.pendingRetry {
-                leasePDF = s.leasePDF
-                dealSheet = s.dealSheet
-                context = s.context
-                thread = s.thread
-                ws.pendingRetry = nil   // consume — normal opens stay fresh
+            if let pending = ws.pendingRetry {
+                leasePDF = pending.source.leasePDF
+                originalLeaseFilename = pending.source.originalLeaseFilename
+                dealSheet = pending.source.dealSheet
+                context = pending.source.context
+                thread = pending.source.thread
+                saveThread = pending.saveThread && !pending.source.thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+        }
+        .onChange(of: thread) { _, value in
+            if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                saveThread = false
             }
         }
     }
@@ -68,18 +76,18 @@ struct RunSheet: View {
 
     @ViewBuilder private var dropZone: some View {
         if let url = leasePDF {
-            selectedFileCard(url)
+            selectedFileCard(url, displayName: originalLeaseFilename)
         } else {
             emptyDropZone
         }
     }
 
     private var emptyDropZone: some View {
-        Button { pdfImporter = true } label: {
+        Button { chooseLeasePDF() } label: {
             VStack(spacing: 9) {
                 RLIcon("tray", size: 26).foregroundStyle(rl.accent)
-                Text("Drop a lease PDF").font(rl.ui(15, .semibold)).foregroundStyle(rl.ink)
-                Text("or click to choose").font(rl.ui(12.5)).foregroundStyle(rl.ink3)
+                Text("Drop a lease PDF here").font(rl.ui(15, .semibold)).foregroundStyle(rl.ink)
+                Text("Choose PDF").font(rl.ui(12.5, .medium)).foregroundStyle(rl.accent)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 30)
             .background(dropTargeted ? rlMix(rl.accent, rl.surface2, 0.10) : rl.surface2,
@@ -91,33 +99,31 @@ struct RunSheet: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Choose lease PDF")
+        .accessibilityHint("Opens a file picker, or drop a lease PDF here.")
         .animation(.easeOut(duration: 0.15), value: dropTargeted)
-        .onDrop(of: [.pdf], isTargeted: $dropTargeted) { providers in
-            guard let provider = providers.first else { return false }
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url { DispatchQueue.main.async { leasePDF = url } }
-            }
-            return true
-        }
+        .onDrop(of: RunSheetFileIntake.leaseDropTypes, isTargeted: $dropTargeted, perform: handleLeaseDrop)
     }
 
-    private func selectedFileCard(_ url: URL) -> some View {
-        HStack(spacing: 12) {
+    private func selectedFileCard(_ url: URL, displayName: String?) -> some View {
+        let filename = RunSheetFileIntake.displayFilename(for: url, originalFilename: displayName)
+        return HStack(spacing: 12) {
             RLIcon("lease", size: 16).foregroundStyle(rl.accent)
                 .frame(width: 34, height: 34)
                 .background(rlMix(rl.accent, rl.win, 0.11), in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
-                Text(url.lastPathComponent).font(rl.ui(14, .semibold)).foregroundStyle(rl.ink).lineLimit(1)
+                Text(filename).font(rl.ui(14, .semibold)).foregroundStyle(rl.ink).lineLimit(1)
                 HStack(spacing: 5) {
                     RLIcon("check", size: 11).foregroundStyle(rl.ok)
                     Text("Ready to check").font(rl.ui(12)).foregroundStyle(rl.ok)
                 }
             }
             Spacer(minLength: 8)
-            Button { pdfImporter = true } label: {
+            Button { chooseLeasePDF() } label: {
                 Text("Change").font(rl.ui(12.5, .medium)).foregroundStyle(rl.accent)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Change lease PDF")
         }
         .padding(12)
         .background(rl.surface, in: RoundedRectangle(cornerRadius: 12))
@@ -140,6 +146,12 @@ struct RunSheet: View {
                 .onDrop(of: [.fileURL, .plainText], isTargeted: $threadDropTargeted) { providers in
                     handleThreadDrop(providers)
                 }
+            if !thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Toggle(isOn: $saveThread) {
+                    Text("Save thread with document").font(rl.ui(12.5)).foregroundStyle(rl.ink2)
+                }
+                .toggleStyle(.checkbox)
+            }
         }
     }
 
@@ -167,7 +179,7 @@ struct RunSheet: View {
                         subtitle: "Deal sheet") { dealSheet = nil }
         } else {
             addChip(icon: "tablecells", title: "Deal sheet",
-                    hint: "match negotiated terms") { dealImporter = true }
+                    hint: "match negotiated terms") { chooseDealSheet() }
         }
     }
 
@@ -227,30 +239,48 @@ struct RunSheet: View {
     // MARK: footer
 
     private var footer: some View {
-        HStack(spacing: 10) {
-            Spacer()
-            Button { ws.showRunSheet = false } label: {
-                Text("Cancel").font(rl.ui(13, .medium)).foregroundStyle(rl.ink2)
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(rl.surface, in: RoundedRectangle(cornerRadius: 9))
-                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(rl.line2, lineWidth: 1))
+        VStack(alignment: .trailing, spacing: 8) {
+            if let message = preflight.message, leasePDF != nil {
+                Text(message)
+                    .font(rl.ui(12))
+                    .foregroundStyle(rl.problem)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
-            .buttonStyle(.plain).keyboardShortcut(.cancelAction)
 
-            Button {
-                guard let leasePDF else { return }
-                ws.startRun(leasePDF: leasePDF,
-                            deal: DealContext(thread: thread, dealSheet: dealSheet, context: context))
-            } label: {
-                HStack(spacing: 7) {
-                    Text("Run check").font(rl.ui(13, .semibold))
-                    RLIcon("chev", size: 12)
+            HStack(spacing: 10) {
+                Spacer()
+                Button {
+                    clearTemporaryLeasePDF()
+                    ws.cancelRunSheet()
+                } label: {
+                    Text("Cancel").font(rl.ui(13, .medium)).foregroundStyle(rl.ink2)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(rl.surface, in: RoundedRectangle(cornerRadius: 9))
+                        .overlay(RoundedRectangle(cornerRadius: 9).stroke(rl.line2, lineWidth: 1))
                 }
-                .foregroundStyle(rl.win)
-                .padding(.horizontal, 15).padding(.vertical, 8)
-                .background(leasePDF == nil ? rl.ink4 : rl.ink, in: RoundedRectangle(cornerRadius: 9))
+                .buttonStyle(.plain).keyboardShortcut(.cancelAction)
+
+                Button {
+                    guard let leasePDF, preflight.canRun else { return }
+                    ws.startRun(
+                        leasePDF: leasePDF,
+                        deal: DealContext(
+                            thread: thread, dealSheet: dealSheet, context: context,
+                            saveThread: saveThread),
+                        originalLeaseFilename: originalLeaseFilename)
+                } label: {
+                    HStack(spacing: 7) {
+                        Text("Run check").font(rl.ui(13, .semibold))
+                        RLIcon("chev", size: 12)
+                    }
+                    .foregroundStyle(rl.win)
+                    .padding(.horizontal, 15).padding(.vertical, 8)
+                    .background(preflight.canRun ? rl.ink : rl.ink4, in: RoundedRectangle(cornerRadius: 9))
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
+                .disabled(!preflight.canRun || ws.isRunning)
             }
-            .buttonStyle(.plain).keyboardShortcut(.defaultAction).disabled(leasePDF == nil)
         }
     }
 
@@ -295,8 +325,91 @@ struct RunSheet: View {
     private func fieldLabel(_ t: String) -> some View {
         Text(t).font(rl.ui(11, .semibold)).tracking(0.4).textCase(.uppercase).foregroundStyle(rl.ink3)
     }
+
+    private func chooseLeasePDF() {
+        presentOpenPanel(allowedContentTypes: [.pdf]) { url in
+            setLeasePDF(url, originalFilename: nil, temporary: false)
+        }
+    }
+
+    private func chooseDealSheet() {
+        presentOpenPanel(allowedContentTypes: [.yaml, .yml]) { url in
+            if RunSheetFileIntake.isDealSheet(url) {
+                dealSheet = url
+            }
+        }
+    }
+
+    private func presentOpenPanel(allowedContentTypes: [UTType], completion: @escaping (URL) -> Void) {
+        let panel = RunSheetFileIntake.makeOpenPanel(allowedContentTypes: allowedContentTypes)
+        let handler: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            completion(url)
+        }
+
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: handler)
+        } else {
+            panel.begin(completionHandler: handler)
+        }
+    }
+
+    private func handleLeaseDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+
+        if provider.canLoadObject(ofClass: URL.self) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url, RunSheetFileIntake.isPDF(url) else { return }
+                DispatchQueue.main.async {
+                    setLeasePDF(url, originalFilename: nil, temporary: false)
+                }
+            }
+            return true
+        }
+
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                guard let url = RunSheetFileIntake.fileURL(from: item),
+                      RunSheetFileIntake.isPDF(url) else { return }
+                DispatchQueue.main.async {
+                    setLeasePDF(url, originalFilename: nil, temporary: false)
+                }
+            }
+            return true
+        }
+
+        guard provider.hasItemConformingToTypeIdentifier(UTType.pdf.identifier) else { return false }
+        provider.loadFileRepresentation(forTypeIdentifier: UTType.pdf.identifier) { url, _ in
+            guard let url,
+                  let copy = try? RunSheetFileIntake.copyDroppedPDFToTemporaryURL(
+                    url,
+                    suggestedName: provider.suggestedName
+                  ) else { return }
+            let originalName = copy.lastPathComponent
+            DispatchQueue.main.async {
+                setLeasePDF(copy, originalFilename: originalName, temporary: true)
+            }
+        }
+        return true
+    }
+
+    private func setLeasePDF(_ url: URL, originalFilename: String?, temporary: Bool) {
+        clearTemporaryLeasePDF(preserving: temporary ? url : nil)
+        leasePDF = url
+        self.originalLeaseFilename = originalFilename
+        temporaryLeasePDF = temporary ? url : nil
+    }
+
+    private func clearTemporaryLeasePDF(preserving preservedURL: URL? = nil) {
+        guard let temporaryLeasePDF else { return }
+        if temporaryLeasePDF.standardizedFileURL != preservedURL?.standardizedFileURL {
+            RunSheetFileIntake.removeTemporaryDroppedPDF(temporaryLeasePDF)
+        }
+        self.temporaryLeasePDF = nil
+    }
 }
 
 extension UTType {
     static let yaml = UTType(filenameExtension: "yaml") ?? .data
+    static let yml = UTType(filenameExtension: "yml") ?? .yaml
 }
