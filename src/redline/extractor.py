@@ -100,6 +100,11 @@ Rules:
   "$30,000 per annum for years 1-5") into one entry per year. When the lease quotes
   alternative rates for different display-face counts, use only the rate matching
   num_display_faces (do not include the other option as separate lines).
+- For general lease fields, extract the operative clause text or a concise operative
+  summary as the value. Use null when the topic is not present or cannot be verified.
+- default_cure_period_days and renewal_notice_deadline_days are day counts. If multiple
+  cure periods exist, use the shortest general tenant cure period and explain the source
+  quote. If a renewal option has a notice window, extract the required advance notice days.
 
 JSON shape (replace example item values with real data, or use [] if none):
 {{
@@ -129,6 +134,18 @@ JSON shape (replace example item values with real data, or use [] if none):
   "base_term_years": {{"value": null, "quote": null, "page": null}},
   "renewal_options": {{"value": null, "quote": null, "page": null}},
   "stated_expiry_date": {{"value": null, "quote": null, "page": null}},
+  "security_deposit": {{"value": null, "quote": null, "page": null}},
+  "additional_rent_terms": {{"value": null, "quote": null, "page": null}},
+  "cam_audit_rights": {{"value": null, "quote": null, "page": null}},
+  "permitted_use": {{"value": null, "quote": null, "page": null}},
+  "maintenance_responsibility": {{"value": null, "quote": null, "page": null}},
+  "insurance_requirements": {{"value": null, "quote": null, "page": null}},
+  "indemnity_clause": {{"value": null, "quote": null, "page": null}},
+  "assignment_sublease_consent": {{"value": null, "quote": null, "page": null}},
+  "default_cure_period_days": {{"value": null, "quote": null, "page": null}},
+  "notice_addresses": {{"value": null, "quote": null, "page": null}},
+  "renewal_notice_deadline_days": {{"value": null, "quote": null, "page": null}},
+  "termination_rights": {{"value": null, "quote": null, "page": null}},
   "extraction_notes": null
 }}
 

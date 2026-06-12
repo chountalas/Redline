@@ -17,7 +17,7 @@ enum SampleData {
     static let pembina = ReviewDoc(
         id: "pembina", name: "100 Sample Highway", kind: "Commercial lease", type: "lease",
         party: "Example Outdoor Media Ltd.", pages: 2, deal: false,
-        verdict: Verdict(level: "error", headline: "Do not sign", lead: "R2",
+        verdict: Verdict(level: "error", headline: "Needs review", lead: "R2",
             sub: "Rent is structured per display face — the figure that silently doubled this lease to $800K."),
         facts: [
             KeyTerm(k: "Stated total rent", v: "CAD 400,000"),
@@ -59,9 +59,9 @@ enum SampleData {
                 plain: "Commencement, term length and expiry all agree.",
                 evidence: [ReviewEvidence(clause: "p1-term", quote: "commences January 1, 2026")]),
             ReviewFinding(id: "R6", rule: "Deal-sheet match", severity: .skip,
-                title: "No deal sheet provided",
+                title: "No comparison sheet provided",
                 detail: "Attach a deal.yaml to also check this draft against the terms you negotiated. That’s the only way to catch a lease that is internally consistent but uses the wrong business numbers.",
-                plain: "No deal sheet attached — intent not checked."),
+                plain: "No comparison sheet attached — intent not checked."),
         ],
         advisory: [],
         dealTerms: [
@@ -87,12 +87,12 @@ enum SampleData {
         ]
     )
 
-    // ── 2) 200 Fixture Drive — LEASE, clean, checked against a deal sheet ────
+    // ── 2) 200 Fixture Drive — LEASE, clean, checked against a comparison sheet ────
     static let idylwyld = ReviewDoc(
         id: "idylwyld", name: "200 Fixture Drive", kind: "Commercial lease", type: "lease",
         party: "Example Outdoor Media Ltd.", pages: 3, deal: true,
         verdict: Verdict(level: "pass", headline: "Clears all checks", lead: "R6",
-            sub: "Six deterministic checks ran, including a match against your negotiated deal sheet."),
+            sub: "Six deterministic checks ran, including a match against your negotiated comparison sheet."),
         facts: [
             KeyTerm(k: "Stated total rent", v: "CAD 600,000"),
             KeyTerm(k: "Rent basis", v: "per display face"),
@@ -129,7 +129,7 @@ enum SampleData {
                 plain: "Dates agree · 15 years total exposure incl. renewals.",
                 evidence: [ReviewEvidence(clause: "i3-renew", quote: "two (2) renewal options of five (5) years each")]),
             ReviewFinding(id: "R6", rule: "Deal-sheet match", severity: .pass,
-                title: "Draft matches negotiated deal sheet",
+                title: "Draft matches negotiated comparison sheet",
                 detail: "Total rent, per-face rent, faces, base term and renewals all match idylwyld.deal.yaml.",
                 plain: "Draft matches every term in your deal.yaml.",
                 evidence: [ReviewEvidence(clause: "i2-total", quote: "Total rent shall be $600,000")]),
@@ -168,7 +168,7 @@ enum SampleData {
     static let northgate = ReviewDoc(
         id: "northgate", name: "Example Services MSA", kind: "Master Services Agreement", type: "contract",
         party: "Example Systems Inc.", pages: 4, deal: false,
-        verdict: Verdict(level: "error", headline: "Don’t countersign yet", lead: "X2",
+        verdict: Verdict(level: "error", headline: "Review before approval", lead: "X2",
             sub: "A broken cross-reference and a missed auto-renewal opt-out window — both verifiable in the source."),
         facts: [
             KeyTerm(k: "Monthly fee", v: "USD 12,000"),

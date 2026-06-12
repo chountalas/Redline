@@ -20,11 +20,11 @@ enum RunPreflight {
         apiKey: String,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> RunPreflightResult {
-        guard let leasePDF else { return .blocked("Choose a lease PDF.") }
-        guard RunSheetFileIntake.isPDF(leasePDF) else { return .blocked("Use a PDF lease.") }
+        guard let leasePDF else { return .blocked("Choose a PDF document.") }
+        guard RunSheetFileIntake.isPDF(leasePDF) else { return .blocked("Use an extractable PDF document.") }
 
         if let dealSheet, !RunSheetFileIntake.isDealSheet(dealSheet) {
-            return .blocked("Deal sheet must be a .yaml or .yml file.")
+            return .blocked("Comparison sheet must be a .yaml or .yml file.")
         }
 
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)

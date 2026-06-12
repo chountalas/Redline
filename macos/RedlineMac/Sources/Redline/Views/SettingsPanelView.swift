@@ -93,6 +93,21 @@ struct AISettingsSection: View {
             SettingsSectionLabel("AI")
 
             HStack {
+                Text("Profile").font(rl.ui(13)).foregroundStyle(rl.ink2)
+                Spacer()
+                Picker("", selection: $ws.profile) {
+                    ForEach(ReviewProfile.allCases) { Text($0.title).tag($0) }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
+
+            Text(ws.profile.detail)
+                .font(rl.ui(11.5))
+                .foregroundStyle(rl.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
                 Text("Provider").font(rl.ui(13)).foregroundStyle(rl.ink2)
                 Spacer()
                 Picker("", selection: Binding(
@@ -177,7 +192,7 @@ struct AddDocButton: View {
             Image(systemName: "plus")
         }
         .disabled(ws.isRunning)
-        .help("Check a new PDF")
-        .accessibilityLabel("Check a new PDF")
+        .help("Review a new PDF")
+        .accessibilityLabel("Review a new PDF")
     }
 }

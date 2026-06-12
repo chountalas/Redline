@@ -129,6 +129,18 @@ class LeaseFacts(RedlineModel):
         default_factory=ExtractedValue[list[Decimal]]
     )
     stated_expiry_date: ExtractedValue[date] = Field(default_factory=ExtractedValue[date])
+    security_deposit: ExtractedValue[Money] = Field(default_factory=ExtractedValue[Money])
+    additional_rent_terms: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    cam_audit_rights: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    permitted_use: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    maintenance_responsibility: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    insurance_requirements: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    indemnity_clause: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    assignment_sublease_consent: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    default_cure_period_days: ExtractedValue[int] = Field(default_factory=ExtractedValue[int])
+    notice_addresses: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
+    renewal_notice_deadline_days: ExtractedValue[int] = Field(default_factory=ExtractedValue[int])
+    termination_rights: ExtractedValue[str] = Field(default_factory=ExtractedValue[str])
     extraction_notes: str | None = None
 
 
@@ -204,7 +216,32 @@ class Summary(RedlineModel):
         return summary
 
 
+class ProfileMeta(RedlineModel):
+    id: str = "lease-general"
+    name: str = "General lease"
+    version: str = "1"
+    description: str = (
+        "Commercial lease financial, date, comparison-term, and general clause coverage checks."
+    )
+
+
+class DocumentMeta(RedlineModel):
+    source_file: str
+    page_count: int
+    kind: str = "document_pdf"
+
+
+class CoverageItem(RedlineModel):
+    label: str
+    status: Literal["ran", "not_provided", "not_supported"]
+    detail: str
+
+
 class CheckReport(RedlineModel):
+    profile: ProfileMeta = Field(default_factory=ProfileMeta)
+    document: DocumentMeta | None = None
+    context_summary: str | None = None
+    coverage: list[CoverageItem] = Field(default_factory=list)
     facts_summary: dict[str, Any]
     deterministic_findings: list[Finding]
     advisory_findings: list[Finding] = Field(default_factory=list)

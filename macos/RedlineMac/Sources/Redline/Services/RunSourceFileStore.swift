@@ -9,9 +9,9 @@ enum RunSourceImportError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unsupportedLease(let url):
-            "Could not import \(url.lastPathComponent): lease must be a PDF."
+            "Could not import \(url.lastPathComponent): source document must be a PDF."
         case .unsupportedDealSheet(let url):
-            "Could not import \(url.lastPathComponent): deal sheet must be .yaml or .yml."
+            "Could not import \(url.lastPathComponent): comparison sheet must be .yaml or .yml."
         case .missing(let url):
             "Could not import \(url.lastPathComponent): file was not found."
         case .copyFailed(let url, let message):

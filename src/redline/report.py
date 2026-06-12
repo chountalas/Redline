@@ -5,14 +5,17 @@ from typing import Any, Literal
 
 from redline.models import (
     CheckReport,
+    CoverageItem,
     DealSheet,
     DealTermCheck,
+    DocumentMeta,
     Finding,
     LeaseFacts,
     Money,
     Severity,
     Summary,
 )
+from redline.profiles import DEFAULT_PROFILE, ProfileID, normalize_profile, profile_meta
 from redline.rules import format_money
 
 FailOn = Literal["error", "warn", "verify", "advisory"]
@@ -34,6 +37,16 @@ def facts_summary(facts: LeaseFacts) -> dict[str, Any]:
         summary["stated_total_rent"] = format_money(facts.stated_total_rent.value)
     if facts.per_face_rent.value is not None:
         summary["per_face_rent"] = format_money(facts.per_face_rent.value)
+    if facts.security_deposit.value is not None:
+        summary["security_deposit"] = format_money(facts.security_deposit.value)
+    if facts.default_cure_period_days.value is not None:
+        summary["default_cure_period_days"] = facts.default_cure_period_days.value
+    if facts.renewal_notice_deadline_days.value is not None:
+        summary["renewal_notice_deadline_days"] = facts.renewal_notice_deadline_days.value
+    if facts.permitted_use.value is not None:
+        summary["permitted_use"] = facts.permitted_use.value
+    if facts.assignment_sublease_consent.value is not None:
+        summary["assignment_sublease_consent"] = facts.assignment_sublease_consent.value
     return summary
 
 
@@ -112,7 +125,7 @@ def build_deal_terms(
                 expected=_format_deal_value(field, value),
                 actual=actual,
                 verified=verified,
-                source=provenance.get(field, "thread"),
+                source=provenance.get(field, "deal.yaml"),
             )
         )
     return terms
@@ -123,14 +136,21 @@ def build_report(
     deterministic_findings: list[Finding],
     advisory_findings: list[Finding] | None = None,
     *,
+    profile: ProfileID | str = DEFAULT_PROFILE,
     deal: DealSheet | None = None,
     deal_provenance: dict[str, str] | None = None,
+    context_summary: str | None = None,
     fail_on: FailOn = "error",
 ) -> CheckReport:
+    resolved_profile = normalize_profile(profile)
     advisory = advisory_findings or []
     all_findings = deterministic_findings + advisory
     r6 = [f for f in deterministic_findings if f.rule_id == "R6_dealsheet_match"]
     return CheckReport(
+        profile=profile_meta(resolved_profile),
+        document=DocumentMeta(source_file=facts.source_file, page_count=facts.page_count),
+        context_summary=context_summary,
+        coverage=_coverage(resolved_profile, deal, context_summary),
         facts_summary=facts_summary(facts),
         deterministic_findings=deterministic_findings,
         advisory_findings=advisory,
@@ -145,8 +165,74 @@ def build_report(
     )
 
 
+def _coverage(
+    profile: ProfileID,
+    deal: DealSheet | None,
+    context_summary: str | None,
+) -> list[CoverageItem]:
+    items = [
+        CoverageItem(
+            label="Lease financials and dates",
+            status="ran",
+            detail=(
+                "Ran deterministic rent, term, date, numeral, escalation, "
+                "and comparison-term checks."
+            ),
+        ),
+        CoverageItem(
+            label="Comparison terms",
+            status="ran" if deal is not None else "not_provided",
+            detail=(
+                "Compared extracted lease facts against supplied numeric comparison terms "
+                "when provided."
+            ),
+        ),
+        CoverageItem(
+            label="Advisory context",
+            status="ran" if context_summary else "not_provided",
+            detail="Used review context for non-deterministic advisory findings when provided.",
+        ),
+    ]
+    if profile == "lease-general":
+        items.insert(
+            1,
+            CoverageItem(
+                label="General lease clauses",
+                status="ran",
+                detail=(
+                    "Checked extracted permitted use, assignment/sublease, maintenance, "
+                    "insurance, default cure, notices, renewal deadlines, additional rent, "
+                    "and termination-right visibility."
+                ),
+            ),
+        )
+    else:
+        items.insert(
+            1,
+            CoverageItem(
+                label="General lease clauses",
+                status="not_supported",
+                detail="Use profile=lease-general for broader lease clause coverage.",
+            ),
+        )
+    return items
+
+
 def render_text(report: CheckReport) -> str:
     lines: list[str] = []
+    lines.append(f"Profile — {report.profile.name} ({report.profile.id})")
+    if report.document:
+        lines.append(
+            f"Document — {report.document.source_file} ({report.document.page_count} pages)"
+        )
+    if report.context_summary:
+        lines.append(f"Context — {report.context_summary}")
+    if report.coverage:
+        lines.append("Coverage")
+        for item in report.coverage:
+            lines.append(f"- [{item.status}] {item.label}: {item.detail}")
+    lines.append("")
+
     deterministic = [
         finding
         for finding in report.deterministic_findings
@@ -175,10 +261,10 @@ def render_text(report: CheckReport) -> str:
 
     if report.deal_terms:
         verified = sum(1 for t in report.deal_terms if t.verified)
-        lines.append(f"Deal terms — {verified} of {len(report.deal_terms)} verified")
+        lines.append(f"Comparison terms — {verified} of {len(report.deal_terms)} verified")
         for term in report.deal_terms:
             mark = "OK" if term.verified else "MISMATCH"
-            actual = f", lease shows {term.actual}" if term.actual else ""
+            actual = f", document shows {term.actual}" if term.actual else ""
             lines.append(
                 f"- [{mark}] {term.label}: expected {term.expected}{actual} (from {term.source})"
             )

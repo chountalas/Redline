@@ -45,8 +45,11 @@ Tool:
 ```text
 check_lease(
   path,
+  profile = "lease-general",
   deal_path = null,
   context = null,
+  context_path = null,
+  thread_path = null,
   fail_on = "error",
   provider = null,
   model = null,
@@ -55,5 +58,7 @@ check_lease(
 ```
 
 It returns the same structured payload as `redline check --json`.
+
+`profile` may be `lease-general` or `lease-math`. `context` is an advisory focus string. `context_path` points to longer review context text for the advisory pass. `thread_path` points to review context text; for lease profiles it distills supported numeric comparison terms for deterministic checks and keeps qualitative commitments as advisory watch items.
 
 `provider = null` uses Redline's default provider, currently `codex`.

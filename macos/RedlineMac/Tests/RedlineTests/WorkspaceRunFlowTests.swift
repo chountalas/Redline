@@ -5,9 +5,15 @@ import XCTest
 final class WorkspaceRunFlowTests: XCTestCase {
     private final class CapturingRunner: RedlineRunning {
         var leasePDF: URL?
+        var profile: ReviewProfile?
         var dealSheet: URL?
         var context: String?
         var thread: String?
+        var provider: LLMProvider?
+        var model: String?
+        var baseURL: String?
+        var apiKey: String?
+        var callCount = 0
         let report: CheckReport
 
         init(report: CheckReport) {
@@ -16,6 +22,7 @@ final class WorkspaceRunFlowTests: XCTestCase {
 
         func run(
             leasePDF: URL,
+            profile: ReviewProfile,
             dealSheet: URL?,
             context: String,
             failOn: FailOn,
@@ -26,10 +33,16 @@ final class WorkspaceRunFlowTests: XCTestCase {
             thread: String,
             onLaunch: @Sendable (Process) -> Void
         ) async throws -> CheckReport {
+            callCount += 1
             self.leasePDF = leasePDF
+            self.profile = profile
             self.dealSheet = dealSheet
             self.context = context
             self.thread = thread
+            self.provider = provider
+            self.model = model
+            self.baseURL = baseURL
+            self.apiKey = apiKey
             return report
         }
     }
@@ -40,6 +53,7 @@ final class WorkspaceRunFlowTests: XCTestCase {
 
         func run(
             leasePDF: URL,
+            profile: ReviewProfile,
             dealSheet: URL?,
             context: String,
             failOn: FailOn,
@@ -110,6 +124,7 @@ final class WorkspaceRunFlowTests: XCTestCase {
 
         func run(
             leasePDF: URL,
+            profile: ReviewProfile,
             dealSheet: URL?,
             context: String,
             failOn: FailOn,
@@ -209,6 +224,7 @@ final class WorkspaceRunFlowTests: XCTestCase {
             deal: DealContext(thread: "private thread", dealSheet: deal, context: "focus", saveThread: false)
         )
         try await waitForDocument(ws)
+        try await waitForIdleRun(ws)
 
         let runLease = try XCTUnwrap(runner.leasePDF)
         let runDeal = try XCTUnwrap(runner.dealSheet)
@@ -217,7 +233,79 @@ final class WorkspaceRunFlowTests: XCTestCase {
         XCTAssertEqual(runLease.deletingLastPathComponent().lastPathComponent, "Imported Sources")
         XCTAssertEqual(runDeal.deletingLastPathComponent().lastPathComponent, "Imported Sources")
         XCTAssertEqual(runner.thread, "private thread")
+        XCTAssertEqual(runner.context, "Focus note:\nfocus\n\nReview context:\nprivate thread")
+        XCTAssertEqual(runner.profile, .leaseGeneral)
         XCTAssertEqual(ws.documents.first?.source?.thread, "")
+        XCTAssertEqual(ws.documents.first?.source?.context, "focus")
+        XCTAssertEqual(ws.documents.first?.source?.profile, .leaseGeneral)
+        XCTAssertEqual(ws.documents.first?.source?.reviewContextState, .unsaved)
+    }
+
+    func testUnsavedReviewContextFeedsRunButBlocksSilentRecheck() async throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let lease = dir.appendingPathComponent("source.pdf")
+        try "%PDF-1.4\n".write(to: lease, atomically: true, encoding: .utf8)
+
+        let runner = try CapturingRunner(report: report())
+        let ws = Workspace(storeURL: dir.appendingPathComponent("library.json"), runner: runner)
+
+        ws.startRun(
+            leasePDF: lease,
+            deal: DealContext(thread: "Cannot accept auto-renewal.", dealSheet: nil, context: "", saveThread: false)
+        )
+        try await waitForDocument(ws)
+        try await waitForIdleRun(ws)
+
+        XCTAssertEqual(runner.context, "Review context:\nCannot accept auto-renewal.")
+        XCTAssertEqual(runner.callCount, 1)
+        XCTAssertEqual(ws.documents.first?.source?.thread, "")
+        XCTAssertEqual(ws.documents.first?.source?.reviewContextState, .unsaved)
+
+        ws.recheck()
+
+        XCTAssertEqual(runner.callCount, 1, "re-check must not silently drop unsaved review context")
+        XCTAssertTrue(ws.showRunSheet)
+        XCTAssertEqual(ws.pendingRetry?.source.reviewContextState, .unsaved)
+    }
+
+    func testRecheckUsesCurrentAISettings() async throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let lease = dir.appendingPathComponent("source.pdf")
+        try "%PDF-1.4\n".write(to: lease, atomically: true, encoding: .utf8)
+
+        let runner = try CapturingRunner(report: report())
+        let ws = Workspace(storeURL: dir.appendingPathComponent("library.json"), runner: runner)
+
+        ws.startRun(
+            leasePDF: lease,
+            deal: DealContext(thread: "", dealSheet: nil, context: "", saveThread: false)
+        )
+        try await waitForDocument(ws)
+        try await waitForIdleRun(ws)
+        XCTAssertEqual(runner.callCount, 1)
+
+        ws.provider = .openai
+        ws.profile = .leaseMath
+        ws.model = "gpt-test"
+        ws.baseURL = "https://api.example"
+        ws.apiKey = "sk-live"
+        ws.recheck()
+
+        for _ in 0..<120 {
+            if runner.callCount == 2 { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        XCTAssertEqual(runner.callCount, 2)
+        XCTAssertEqual(runner.profile, .leaseMath)
+        XCTAssertEqual(runner.provider, .openai)
+        XCTAssertEqual(runner.model, "gpt-test")
+        XCTAssertEqual(runner.baseURL, "https://api.example")
+        XCTAssertEqual(runner.apiKey, "sk-live")
     }
 
     func testStartRunRemovesDroppedTemporaryLeaseAfterImport() async throws {

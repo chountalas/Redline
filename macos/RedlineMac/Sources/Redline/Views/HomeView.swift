@@ -30,7 +30,7 @@ struct HomeView: View {
                     Spacer()
                 }
                 greeting
-                CheckLeaseButton()
+                CheckDocumentButton()
                 ForEach(docListSections(documents: ws.documents, groups: ws.groups)) { group in
                     section(group.label, group.documents)
                 }
@@ -86,9 +86,9 @@ struct HomeView: View {
 
 // MARK: - Primary action
 
-/// "Check a lease" — the same ink-filled treatment as the first-run invite, so the empty and
+/// "Check a document" — the same ink-filled treatment as the first-run invite, so the empty and
 /// populated home states read as one surface. Opens the run sheet (the document drop target).
-private struct CheckLeaseButton: View {
+private struct CheckDocumentButton: View {
     @Environment(\.rl) private var rl
     @Environment(Workspace.self) private var ws
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -98,7 +98,7 @@ private struct CheckLeaseButton: View {
         Button { ws.openRunSheet() } label: {
             HStack(spacing: 9) {
                 RLIcon("tray", size: 15)
-                Text("Check a lease").font(rl.ui(14, .semibold))
+                Text("Check a document").font(rl.ui(14, .semibold))
             }
             .foregroundStyle(rl.win)
             .padding(.horizontal, 20).padding(.vertical, 11)

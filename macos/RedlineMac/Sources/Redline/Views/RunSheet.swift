@@ -5,8 +5,8 @@ import UniformTypeIdentifiers
 /// Collects the inputs for a real engine run and hands them to the workspace, which drives
 /// the re-check animation and adapts the result into a reviewable document.
 ///
-/// v2: document-first. The modal only asks "what do you want to check" — the lease PDF is
-/// the hero, with a deal sheet and focus note as quiet, expandable extras. Provider / model
+/// v2: document-first. The modal only asks "what do you want to check" — the source PDF is
+/// the hero, with comparison context and a focus note as quiet, expandable extras. Provider / model
 /// / key live in Settings now (the chip below reflects them, read-only), so the run modal
 /// stays about the document instead of mirroring CLI flags.
 struct RunSheet: View {
@@ -29,6 +29,15 @@ struct RunSheet: View {
         RunPreflight.validate(
             leasePDF: leasePDF, dealSheet: dealSheet,
             provider: ws.provider, model: ws.model, baseURL: ws.baseURL, apiKey: ws.apiKey)
+    }
+
+    private var missingRequiredRetryContext: Bool {
+        ws.pendingRetry?.source.reviewContextState == .unsaved
+            && thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var canRun: Bool {
+        preflight.canRun && !missingRequiredRetryContext
     }
 
     var body: some View {
@@ -67,8 +76,13 @@ struct RunSheet: View {
     private var header: some View {
         HStack(spacing: 10) {
             BrandMark(size: 15)
-            Text("Check a lease").font(rl.ui(14)).foregroundStyle(rl.ink3)
+            Text("Check a document").font(rl.ui(14)).foregroundStyle(rl.ink3)
             Spacer()
+            Text("Profile: \(ws.profile.title)")
+                .font(rl.mono(10))
+                .foregroundStyle(rl.ink3)
+                .padding(.horizontal, 8).padding(.vertical, 3)
+                .background(rl.surface2, in: Capsule())
         }
     }
 
@@ -86,7 +100,7 @@ struct RunSheet: View {
         Button { chooseLeasePDF() } label: {
             VStack(spacing: 9) {
                 RLIcon("tray", size: 26).foregroundStyle(rl.accent)
-                Text("Drop a lease PDF here").font(rl.ui(15, .semibold)).foregroundStyle(rl.ink)
+                Text("Drop a PDF here").font(rl.ui(15, .semibold)).foregroundStyle(rl.ink)
                 Text("Choose PDF").font(rl.ui(12.5, .medium)).foregroundStyle(rl.accent)
             }
             .frame(maxWidth: .infinity).padding(.vertical, 30)
@@ -99,16 +113,16 @@ struct RunSheet: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Choose lease PDF")
-        .accessibilityHint("Opens a file picker, or drop a lease PDF here.")
+        .accessibilityLabel("Choose source PDF")
+        .accessibilityHint("Opens a file picker, or drop a PDF here.")
         .animation(.easeOut(duration: 0.15), value: dropTargeted)
-        .onDrop(of: RunSheetFileIntake.leaseDropTypes, isTargeted: $dropTargeted, perform: handleLeaseDrop)
+        .onDrop(of: RunSheetFileIntake.documentDropTypes, isTargeted: $dropTargeted, perform: handleLeaseDrop)
     }
 
     private func selectedFileCard(_ url: URL, displayName: String?) -> some View {
         let filename = RunSheetFileIntake.displayFilename(for: url, originalFilename: displayName)
         return HStack(spacing: 12) {
-            RLIcon("lease", size: 16).foregroundStyle(rl.accent)
+            RLIcon("doc", size: 16).foregroundStyle(rl.accent)
                 .frame(width: 34, height: 34)
                 .background(rlMix(rl.accent, rl.win, 0.11), in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
@@ -123,19 +137,19 @@ struct RunSheet: View {
                 Text("Change").font(rl.ui(12.5, .medium)).foregroundStyle(rl.accent)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Change lease PDF")
+            .accessibilityLabel("Change source PDF")
         }
         .padding(12)
         .background(rl.surface, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(rl.line2, lineWidth: 1))
     }
 
-    // MARK: deal context (always-visible on-ramp — the negotiation thread)
+    // MARK: comparison context (always-visible on-ramp — negotiated terms or review notes)
 
     private var dealContextSection: some View {
         VStack(alignment: .leading, spacing: 7) {
-            fieldLabel("Deal context")
-            TextField("Paste your negotiation email thread — we'll pull out the numbers and check them.",
+            fieldLabel("Comparison context")
+            TextField("Paste negotiated terms or review notes — we'll pull out what can be checked.",
                       text: $thread, axis: .vertical)
                 .textFieldStyle(.plain).font(rl.ui(13)).foregroundStyle(rl.ink).lineLimit(3...10)
                 .padding(10)
@@ -146,13 +160,59 @@ struct RunSheet: View {
                 .onDrop(of: [.fileURL, .plainText], isTargeted: $threadDropTargeted) { providers in
                     handleThreadDrop(providers)
                 }
+            contextQuickActions
             if !thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Toggle(isOn: $saveThread) {
-                    Text("Save thread with document").font(rl.ui(12.5)).foregroundStyle(rl.ink2)
+                    Text("Save context with document").font(rl.ui(12.5)).foregroundStyle(rl.ink2)
                 }
                 .toggleStyle(.checkbox)
+            } else if missingRequiredRetryContext {
+                Text("Paste the prior review context again to re-check this document.")
+                    .font(rl.ui(12))
+                    .foregroundStyle(rl.problem)
             }
         }
+    }
+
+    private var contextQuickActions: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 128), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(ReviewContextTemplate.allCases) { template in
+                contextAction(title: template.title, icon: "plus") {
+                    thread = ReviewContextBuilder.appending(template, to: thread)
+                }
+            }
+            contextAction(title: "Paste clipboard", icon: "clip") {
+                pasteClipboardContext()
+            }
+            .disabled(clipboardText == nil)
+        }
+    }
+
+    private func contextAction(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                RLIcon(icon, size: 11)
+                Text(title).font(rl.ui(11.5, .medium)).lineLimit(1)
+            }
+            .foregroundStyle(rl.ink2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 9).padding(.vertical, 7)
+            .background(rl.surface2.opacity(0.55), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(rl.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var clipboardText: String? {
+        guard let value = NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty else { return nil }
+        return value
+    }
+
+    private func pasteClipboardContext() {
+        guard let clipboardText else { return }
+        thread = ReviewContextBuilder.appending(clipboardText, to: thread)
     }
 
     private func handleThreadDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -176,10 +236,10 @@ struct RunSheet: View {
     @ViewBuilder private var dealRow: some View {
         if let deal = dealSheet {
             attachedRow(icon: "tablecells", title: deal.lastPathComponent,
-                        subtitle: "Deal sheet") { dealSheet = nil }
+                        subtitle: "Comparison sheet") { dealSheet = nil }
         } else {
-            addChip(icon: "tablecells", title: "Deal sheet",
-                    hint: "match negotiated terms") { chooseDealSheet() }
+            addChip(icon: "tablecells", title: "Comparison sheet",
+                    hint: "match expected terms") { chooseDealSheet() }
         }
     }
 
@@ -195,7 +255,7 @@ struct RunSheet: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear focus note")
                 }
-                TextField("e.g. check rent matches the negotiated total economics",
+                TextField("e.g. check totals, dates, renewals, and cross-references",
                           text: $context, axis: .vertical)
                     .textFieldStyle(.plain).font(rl.ui(13)).foregroundStyle(rl.ink).lineLimit(1...3)
                     .padding(10)
@@ -261,7 +321,7 @@ struct RunSheet: View {
                 .buttonStyle(.plain).keyboardShortcut(.cancelAction)
 
                 Button {
-                    guard let leasePDF, preflight.canRun else { return }
+                    guard let leasePDF, canRun else { return }
                     ws.startRun(
                         leasePDF: leasePDF,
                         deal: DealContext(
@@ -270,16 +330,16 @@ struct RunSheet: View {
                         originalLeaseFilename: originalLeaseFilename)
                 } label: {
                     HStack(spacing: 7) {
-                        Text("Run check").font(rl.ui(13, .semibold))
+                        Text("Run review").font(rl.ui(13, .semibold))
                         RLIcon("chev", size: 12)
                     }
                     .foregroundStyle(rl.win)
                     .padding(.horizontal, 15).padding(.vertical, 8)
-                    .background(preflight.canRun ? rl.ink : rl.ink4, in: RoundedRectangle(cornerRadius: 9))
+                    .background(canRun ? rl.ink : rl.ink4, in: RoundedRectangle(cornerRadius: 9))
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.defaultAction)
-                .disabled(!preflight.canRun || ws.isRunning)
+                .disabled(!canRun || ws.isRunning)
             }
         }
     }

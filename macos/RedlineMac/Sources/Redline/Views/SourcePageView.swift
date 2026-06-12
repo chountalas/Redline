@@ -1,7 +1,7 @@
 import PDFKit
 import SwiftUI
 
-/// A sheet that shows a source lease PDF opened to a cited page (G6).
+/// A sheet that shows a source PDF opened to a cited page (G6).
 struct SourcePageView: View {
     let request: SourcePageRequest
     var onClose: () -> Void

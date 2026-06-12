@@ -2,7 +2,7 @@ import SwiftUI
 
 /// First-run / empty-library state. Shown by `WorkspaceView` whenever there are no
 /// documents — the app opens here instead of into pre-loaded demo data. One primary
-/// action (check a lease); examples load on demand for a demo.
+/// action (check a document); examples load on demand for a demo.
 struct EmptyStateView: View {
     @Environment(\.rl) private var rl
     @Environment(Workspace.self) private var ws
@@ -15,7 +15,7 @@ struct EmptyStateView: View {
 
             BrandMark(size: 23)
 
-            Text("Catch lease problems before you sign.")
+            Text("Catch document issues before approval.")
                 .font(rl.serif(20, .medium)).foregroundStyle(rl.ink2)
                 .padding(.top, 14)
 
@@ -45,7 +45,7 @@ struct EmptyStateView: View {
         Button { ws.openRunSheet() } label: {
             HStack(spacing: 9) {
                 RLIcon("tray", size: 15)
-                Text("Check a lease").font(rl.ui(14, .semibold))
+                Text("Check a document").font(rl.ui(14, .semibold))
             }
             .foregroundStyle(rl.win)
             .padding(.horizontal, 20).padding(.vertical, 11)

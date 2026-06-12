@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-Please open a private security advisory on GitHub or contact the repository owner directly. Do not file public issues containing secrets, real leases, API keys, or private deal terms.
+Please open a private security advisory on GitHub or contact the repository owner directly. Do not file public issues containing secrets, real documents, API keys, private review context, or private deal terms.
 
 ## Secret Handling
 
@@ -14,7 +14,7 @@ Before publishing or pushing a release branch, run:
 uv run python scripts/check_release_safety.py
 ```
 
-This scanner is a guardrail, not a substitute for review. Also inspect staged files manually for real leases, screenshots, exported reports, and private workflow artifacts.
+This scanner is a guardrail, not a substitute for review. Also inspect staged files manually for real documents, review context, screenshots, exported reports, and private workflow artifacts.
 
 ## Supported Versions
 

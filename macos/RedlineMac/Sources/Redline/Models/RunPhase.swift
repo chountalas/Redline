@@ -57,7 +57,7 @@ struct RunFailure: Equatable {
             guidance = "Couldn't pull text from that PDF. Try re-exporting it, or use an OCR'd copy."
         case "deal_sheet_invalid":
             cause = .badInput
-            guidance = "The deal sheet couldn't be read — check its formatting and try again."
+            guidance = "The comparison sheet couldn't be read — check its formatting and try again."
         default:
             cause = .unknown
             guidance = Cause.unknown.guidance
@@ -70,7 +70,7 @@ private extension RunFailure.Cause {
     var guidance: String {
         switch self {
         case .scannedPDF: "This PDF is a scan — Redline needs selectable text. Try an OCR'd copy."
-        case .badInput: "Redline couldn't read that input. Check the file (and deal sheet, if any) and try again."
+        case .badInput: "Redline couldn't read that input. Check the file (and comparison sheet, if any) and try again."
         case .toolingMissing: "Couldn't launch the checker. Confirm `uv` is installed and you're signed into your provider."
         case .auth: "The provider rejected the request. Check your API key in Settings."
         case .badOutput: "The checker returned unexpected output. Re-run, or switch providers in Settings."

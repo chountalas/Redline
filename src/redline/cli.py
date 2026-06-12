@@ -8,6 +8,7 @@ from collections.abc import Sequence
 from redline import __version__
 from redline.errors import RedlineError
 from redline.pipeline import check_lease
+from redline.profiles import DEFAULT_PROFILE, PROFILE_CHOICES
 from redline.report import render_text
 
 
@@ -19,9 +20,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             report = check_lease(
                 args.path,
+                profile=args.profile,
                 deal_path=args.deal,
                 thread_path=args.thread,
                 context=args.context,
+                context_path=args.context_file,
                 fail_on=args.fail_on,
                 provider=args.provider,
                 model=args.model,
@@ -46,15 +49,25 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="redline",
-        description="Validate commercial lease math with deterministic rules.",
+        description=(
+            "Review documents with cited reports. The current deterministic "
+            "default profile validates general commercial lease terms and math."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    check = subparsers.add_parser("check", help="check a lease PDF")
-    check.add_argument("path", help="path to an extractable-text lease PDF")
+    check = subparsers.add_parser("check", help="check a lease document with a review profile")
+    check.add_argument("path", help="path to an extractable-text PDF document")
+    check.add_argument(
+        "--profile",
+        choices=PROFILE_CHOICES,
+        default=DEFAULT_PROFILE,
+        help="review profile to run; lease-general is broader, lease-math is the narrow math lane",
+    )
     check.add_argument("--deal", help="optional deal.yaml path")
     check.add_argument("--context", help="optional advisory focus for an AI judgment pass")
+    check.add_argument("--context-file", help="path to review context text for the advisory pass")
     check.add_argument(
         "--thread",
         help="path to a negotiation-thread text file to distill into deal terms + advisory items",

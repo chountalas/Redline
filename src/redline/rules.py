@@ -19,6 +19,7 @@ from redline.models import (
     Severity,
 )
 from redline.money_words import parse_money_words
+from redline.profiles import DEFAULT_PROFILE, ProfileID, normalize_profile
 
 Rule = Callable[[LeaseFacts, DealSheet | None], list[Finding]]
 MONEY_TOLERANCE = Decimal("1.00")
@@ -393,8 +394,11 @@ def _compare_money(
         return [
             _could_not_verify(
                 rule_id,
-                f"Could not verify deal sheet {label}",
-                f"Deal sheet provided {label}, but the lease extraction did not include it.",
+                f"Could not verify comparison sheet {label}",
+                (
+                    f"Comparison sheet provided {label}, but the document extraction "
+                    "did not include it."
+                ),
                 _evidence_from(extracted),
             )
         ]
@@ -403,8 +407,11 @@ def _compare_money(
             Finding(
                 rule_id=rule_id,
                 severity=Severity.ERROR,
-                title=f"Deal sheet {label} does not match lease",
-                detail=f"The extracted lease value differs from deal.yaml for {label}.",
+                title=f"Comparison sheet {label} does not match document",
+                detail=(
+                    f"The extracted document value differs from the comparison sheet "
+                    f"for {label}."
+                ),
                 evidence=_evidence_from(extracted),
                 expected=format_money(expected),
                 actual=format_money(extracted.value),
@@ -423,8 +430,11 @@ def _compare_scalar(
         return [
             _could_not_verify(
                 rule_id,
-                f"Could not verify deal sheet {label}",
-                f"Deal sheet provided {label}, but the lease extraction did not include it.",
+                f"Could not verify comparison sheet {label}",
+                (
+                    f"Comparison sheet provided {label}, but the document extraction "
+                    "did not include it."
+                ),
                 _evidence_from(extracted),
             )
         ]
@@ -433,8 +443,11 @@ def _compare_scalar(
             Finding(
                 rule_id=rule_id,
                 severity=Severity.ERROR,
-                title=f"Deal sheet {label} does not match lease",
-                detail=f"The extracted lease value differs from deal.yaml for {label}.",
+                title=f"Comparison sheet {label} does not match document",
+                detail=(
+                    f"The extracted document value differs from the comparison sheet "
+                    f"for {label}."
+                ),
                 evidence=_evidence_from(extracted),
                 expected=str(expected),
                 actual=str(extracted.value),
@@ -472,9 +485,9 @@ def r6_dealsheet_match(facts: LeaseFacts, deal: DealSheet | None = None) -> list
             findings.append(
                 _could_not_verify(
                     rule_id,
-                    "Could not verify deal sheet base_term_years",
+                    "Could not verify comparison sheet base_term_years",
                     (
-                        "Deal sheet provided base_term_years, but the lease extraction "
+                        "Comparison sheet provided base_term_years, but the document extraction "
                         "did not include it."
                     ),
                     _evidence_from(extracted),
@@ -485,8 +498,11 @@ def r6_dealsheet_match(facts: LeaseFacts, deal: DealSheet | None = None) -> list
                 Finding(
                     rule_id=rule_id,
                     severity=Severity.ERROR,
-                    title="Deal sheet base_term_years does not match lease",
-                    detail="The extracted lease value differs from deal.yaml for base_term_years.",
+                    title="Comparison sheet base_term_years does not match document",
+                    detail=(
+                        "The extracted document value differs from the comparison sheet "
+                        "for base_term_years."
+                    ),
                     evidence=_evidence_from(extracted),
                     expected=str(deal.base_term_years),
                     actual=str(extracted.value),
@@ -507,9 +523,9 @@ def r6_dealsheet_match(facts: LeaseFacts, deal: DealSheet | None = None) -> list
             findings.append(
                 _could_not_verify(
                     rule_id,
-                    "Could not verify deal sheet escalation_pct",
+                    "Could not verify comparison sheet escalation_pct",
                     (
-                        "Deal sheet provided escalation_pct, but the lease extraction "
+                        "Comparison sheet provided escalation_pct, but the document extraction "
                         "did not include it."
                     ),
                     _evidence_from(extracted_pct),
@@ -520,8 +536,11 @@ def r6_dealsheet_match(facts: LeaseFacts, deal: DealSheet | None = None) -> list
                 Finding(
                     rule_id=rule_id,
                     severity=Severity.ERROR,
-                    title="Deal sheet escalation_pct does not match lease",
-                    detail="The extracted lease value differs from deal.yaml for escalation_pct.",
+                    title="Comparison sheet escalation_pct does not match document",
+                    detail=(
+                        "The extracted document value differs from the comparison sheet "
+                        "for escalation_pct."
+                    ),
                     evidence=_evidence_from(extracted_pct),
                     expected=str(deal.escalation_pct),
                     actual=str(extracted_pct.value),
@@ -530,7 +549,184 @@ def r6_dealsheet_match(facts: LeaseFacts, deal: DealSheet | None = None) -> list
     return findings
 
 
-RULES: tuple[Rule, ...] = (
+def _missing_clause(
+    rule_id: str,
+    field: ExtractedValue[Any],
+    title: str,
+    detail: str,
+) -> Finding:
+    return _could_not_verify(rule_id, title, detail, _evidence_from(field))
+
+
+def r7_general_lease_clause_coverage(
+    facts: LeaseFacts, deal: DealSheet | None = None
+) -> list[Finding]:
+    del deal
+    rule_id = "R7_general_lease_clause_coverage"
+    required = (
+        (
+            facts.permitted_use,
+            "Could not verify permitted use",
+            "No permitted-use clause was extracted.",
+        ),
+        (
+            facts.assignment_sublease_consent,
+            "Could not verify assignment/sublease consent",
+            "No assignment or sublease consent standard was extracted.",
+        ),
+        (
+            facts.maintenance_responsibility,
+            "Could not verify maintenance responsibility",
+            "No maintenance or repair responsibility clause was extracted.",
+        ),
+        (
+            facts.insurance_requirements,
+            "Could not verify insurance requirements",
+            "No tenant insurance requirement was extracted.",
+        ),
+        (
+            facts.default_cure_period_days,
+            "Could not verify default cure period",
+            "No general tenant default cure period was extracted.",
+        ),
+        (
+            facts.notice_addresses,
+            "Could not verify notice addresses",
+            "No notice address or notice delivery clause was extracted.",
+        ),
+        (
+            facts.additional_rent_terms,
+            "Could not verify additional rent/CAM terms",
+            (
+                "No additional rent, CAM, tax, operating expense, or gross-lease "
+                "exclusion was extracted."
+            ),
+        ),
+    )
+    findings: list[Finding] = []
+    for field, title, detail in required:
+        if field.value is None:
+            findings.append(_missing_clause(rule_id, field, title, detail))
+    return findings
+
+
+def r8_renewal_notice_window(
+    facts: LeaseFacts, deal: DealSheet | None = None
+) -> list[Finding]:
+    del deal
+    rule_id = "R8_renewal_notice_window"
+    renewals = facts.renewal_options.value or []
+    if not renewals:
+        return []
+    deadline = facts.renewal_notice_deadline_days.value
+    if deadline is None:
+        return [
+            Finding(
+                rule_id=rule_id,
+                severity=Severity.WARN,
+                title="Renewal option found without a notice deadline",
+                detail=(
+                    "A renewal option was extracted, but Redline did not extract the "
+                    "advance notice deadline needed to exercise it."
+                ),
+                evidence=_evidence_from(facts.renewal_options, facts.renewal_notice_deadline_days),
+            )
+        ]
+    if deadline <= 0:
+        return [
+            Finding(
+                rule_id=rule_id,
+                severity=Severity.WARN,
+                title="Renewal notice deadline is not usable",
+                detail="The extracted renewal notice deadline is zero or negative days.",
+                evidence=_evidence_from(facts.renewal_notice_deadline_days),
+                actual=f"{deadline} days",
+            )
+        ]
+    return []
+
+
+def r9_additional_rent_audit_visibility(
+    facts: LeaseFacts, deal: DealSheet | None = None
+) -> list[Finding]:
+    del deal
+    rule_id = "R9_additional_rent_audit_visibility"
+    if facts.additional_rent_terms.value is None:
+        return []
+    if facts.cam_audit_rights.value is not None:
+        return []
+    return [
+        Finding(
+            rule_id=rule_id,
+            severity=Severity.WARN,
+            title="Additional rent terms found without extracted audit rights",
+            detail=(
+                "The lease appears to include additional rent, CAM, taxes, or operating "
+                "expenses, but no tenant audit, cap, reconciliation, or review right was extracted."
+            ),
+            evidence=_evidence_from(facts.additional_rent_terms, facts.cam_audit_rights),
+        )
+    ]
+
+
+def r10_assignment_consent_standard(
+    facts: LeaseFacts, deal: DealSheet | None = None
+) -> list[Finding]:
+    del deal
+    rule_id = "R10_assignment_consent_standard"
+    text = (facts.assignment_sublease_consent.value or "").lower()
+    if not text:
+        return []
+    broad_discretion = (
+        "sole discretion" in text
+        or "absolute discretion" in text
+        or ("withhold consent" in text and "not unreasonably" not in text)
+    )
+    if not broad_discretion:
+        return []
+    return [
+        Finding(
+            rule_id=rule_id,
+            severity=Severity.WARN,
+            title="Assignment/sublease consent may be discretionary",
+            detail=(
+                "The extracted assignment or sublease clause appears to let the landlord "
+                "withhold consent broadly. Confirm whether that matches the negotiated standard."
+            ),
+            evidence=_evidence_from(facts.assignment_sublease_consent),
+        )
+    ]
+
+
+def r11_termination_rights_asymmetry(
+    facts: LeaseFacts, deal: DealSheet | None = None
+) -> list[Finding]:
+    del deal
+    rule_id = "R11_termination_rights_asymmetry"
+    text = (facts.termination_rights.value or "").lower()
+    if not text:
+        return []
+    landlord_terms = ("landlord", "lessor", "owner")
+    tenant_terms = ("tenant", "lessee", "occupant")
+    landlord_present = any(term in text for term in landlord_terms)
+    tenant_present = any(term in text for term in tenant_terms)
+    if not landlord_present or tenant_present:
+        return []
+    return [
+        Finding(
+            rule_id=rule_id,
+            severity=Severity.WARN,
+            title="Termination rights appear one-sided",
+            detail=(
+                "The extracted termination clause mentions landlord-side termination rights "
+                "without a matching tenant-side right in the extracted text."
+            ),
+            evidence=_evidence_from(facts.termination_rights),
+        )
+    ]
+
+
+LEASE_MATH_RULES: tuple[Rule, ...] = (
     r1_schedule_sums_to_total,
     r2_per_face_total_reconcile,
     r3_escalation_consistency,
@@ -540,8 +736,30 @@ RULES: tuple[Rule, ...] = (
 )
 
 
-def validate_rules(facts: LeaseFacts, deal: DealSheet | None = None) -> list[Finding]:
+LEASE_GENERAL_RULES: tuple[Rule, ...] = (
+    *LEASE_MATH_RULES,
+    r7_general_lease_clause_coverage,
+    r8_renewal_notice_window,
+    r9_additional_rent_audit_visibility,
+    r10_assignment_consent_standard,
+    r11_termination_rights_asymmetry,
+)
+
+
+def _rules_for_profile(profile: ProfileID) -> tuple[Rule, ...]:
+    if profile == "lease-math":
+        return LEASE_MATH_RULES
+    return LEASE_GENERAL_RULES
+
+
+def validate_rules(
+    facts: LeaseFacts,
+    deal: DealSheet | None = None,
+    *,
+    profile: ProfileID | str = DEFAULT_PROFILE,
+) -> list[Finding]:
+    resolved_profile = normalize_profile(profile)
     findings: list[Finding] = []
-    for rule in RULES:
+    for rule in _rules_for_profile(resolved_profile):
         findings.extend(rule(facts, deal))
     return findings

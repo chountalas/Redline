@@ -64,6 +64,7 @@ struct RedlineRunner {
 
     func run(
         leasePDF: URL,
+        profile: ReviewProfile,
         dealSheet: URL?,
         context: String,
         failOn: FailOn,
@@ -78,10 +79,23 @@ struct RedlineRunner {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
             process.currentDirectoryURL = workingDirectoryURL()
+            var temporaryFiles: [URL] = []
+
+            func writeTemporaryTextFile(prefix: String, contents: String) -> URL? {
+                let url = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("\(prefix)-\(UUID().uuidString).txt")
+                guard (try? contents.write(to: url, atomically: true, encoding: .utf8)) != nil else {
+                    return nil
+                }
+                temporaryFiles.append(url)
+                return url
+            }
 
             var arguments = commandPrefix() + [
                 leasePDF.path,
                 "--json",
+                "--profile",
+                profile.rawValue,
                 "--fail-on",
                 failOn.rawValue,
                 "--provider",
@@ -104,16 +118,16 @@ struct RedlineRunner {
 
             let trimmedContext = context.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedContext.isEmpty {
-                arguments.append(contentsOf: ["--context", trimmedContext])
+                if let url = writeTemporaryTextFile(prefix: "redline-context", contents: trimmedContext) {
+                    arguments.append(contentsOf: ["--context-file", url.path])
+                } else {
+                    arguments.append(contentsOf: ["--context", trimmedContext])
+                }
             }
 
-            var threadFileURL: URL?
             let trimmedThread = thread.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmedThread.isEmpty {
-                let url = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("redline-thread-\(UUID().uuidString).txt")
-                if (try? thread.write(to: url, atomically: true, encoding: .utf8)) != nil {
-                    threadFileURL = url
+                if let url = writeTemporaryTextFile(prefix: "redline-thread", contents: thread) {
                     arguments.append(contentsOf: ["--thread", url.path])
                 }
             }
@@ -142,12 +156,12 @@ struct RedlineRunner {
             process.standardOutput = outputPipe
             process.standardError = errorPipe
 
-            let fileToClean = threadFileURL
+            let filesToClean = temporaryFiles
             process.terminationHandler = { process in
                 let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
 
-                if let fileToClean { try? FileManager.default.removeItem(at: fileToClean) }
+                for file in filesToClean { try? FileManager.default.removeItem(at: file) }
 
                 if let report = try? JSONDecoder().decode(CheckReport.self, from: outputData) {
                     continuation.resume(returning: report)
@@ -182,7 +196,7 @@ struct RedlineRunner {
                 try process.run()
                 onLaunch(process)
             } catch {
-                if let fileToClean { try? FileManager.default.removeItem(at: fileToClean) }
+                for file in temporaryFiles { try? FileManager.default.removeItem(at: file) }
                 continuation.resume(
                     throwing: RedlineRunError.processLaunchFailed(error.localizedDescription)
                 )
@@ -194,6 +208,7 @@ struct RedlineRunner {
 protocol RedlineRunning {
     func run(
         leasePDF: URL,
+        profile: ReviewProfile,
         dealSheet: URL?,
         context: String,
         failOn: FailOn,

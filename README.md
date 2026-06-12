@@ -4,9 +4,18 @@
 
 # Redline
 
-Redline validates commercial lease math. It extracts lease facts with a configurable model provider, then runs deterministic checks over the extracted numbers so the verdict is based on arithmetic and rule assertions, not model judgment.
+Redline is a cited document-review workspace for commercial lease review. It extracts facts with a configurable model provider, then runs deterministic checks over the extracted terms so the verdict is based on rule assertions, arithmetic, and cited evidence rather than model judgment alone.
 
-The first target is the expensive template error where rent was drafted as a figure per display face when the intended deal was a total. Redline is built for local review workflows: you point it at a lease PDF, it cites the source text it used, and the deterministic rules decide whether the math holds.
+The first production target is the expensive template error where rent was drafted as a figure per display face when the intended deal was a total. Redline is built for local review workflows: you point it at a PDF, it cites the source text it used, and the active review profile decides whether the check holds.
+
+## Supported Profiles
+
+Today Redline ships two deterministic lease profiles:
+
+- `lease-general` is the default. It checks commercial lease financials, dates, comparison terms, general clause coverage, renewal notice windows, additional rent/CAM audit visibility, assignment/sublease consent language, and termination-right asymmetry.
+- `lease-math` is the narrow billboard/per-display-face lane. It checks rent schedule totals, per-face rent reconciliation, escalation, numeral-vs-words, term dates, and comparison terms.
+
+Non-lease documents such as NDAs, MSAs, and vendor agreements can still be reviewed with advisory context, but Redline does not yet ship deterministic non-lease profiles.
 
 ## Install
 
@@ -53,6 +62,12 @@ uv run redline check lease.pdf
 
 ```bash
 redline check lease.pdf
+```
+
+That runs the default `lease-general` profile. Use the narrow math lane when you only want the original billboard/per-display-face checks:
+
+```bash
+redline check lease.pdf --profile lease-math
 ```
 
 Codex subscription is the default provider. It uses your local `codex` CLI login and does not require an API key:
@@ -106,6 +121,14 @@ Optional AI advisory focus, kept separate from deterministic findings:
 redline check lease.pdf --context "Check that the rent matches the negotiated total economics."
 ```
 
+For longer review notes, playbooks, approval constraints, or pasted email context, prefer a context file:
+
+```bash
+redline check lease.pdf --context-file review-context.md
+```
+
+`--thread thread.txt` also accepts review context. For lease profiles it distills supported numeric comparison terms for deterministic checks and keeps qualitative commitments as advisory watch items.
+
 ## Mac App
 
 Redline includes a SwiftUI macOS wrapper. It uses the same Python validator engine as the CLI.
@@ -120,7 +143,7 @@ To install a development build into `/Applications` from a source checkout:
 ./script/build_and_run.sh --install
 ```
 
-The app supports choosing or dropping a lease PDF, choosing an optional `deal.yaml`, entering optional deal context/focus text, choosing Codex/OpenAI/Ollama/Anthropic, and reviewing the resulting report from a native window. The API key field is runtime-only and is passed to the CLI process as `REDLINE_API_KEY`; it is not written to disk by Redline. Codex and Ollama do not need a key.
+The app supports choosing or dropping a PDF, choosing a review profile, choosing an optional comparison sheet, entering optional comparison context/focus text, choosing Codex/OpenAI/Ollama/Anthropic, and reviewing the resulting report from a native window. The API key field is runtime-only and is passed to the CLI process as `REDLINE_API_KEY`; it is not written to disk by Redline. Codex and Ollama do not need a key.
 
 ## Screenshots
 
@@ -156,14 +179,19 @@ That is the core trust boundary: the selected model extracts the facts and sourc
 - `R4_numeral_vs_words`: numerals match spelled-out money.
 - `R5_term_date_coherence`: commencement, base term, and expiry agree.
 - `R6_dealsheet_match`: optional `deal.yaml` matches extracted facts.
+- `R7_general_lease_clause_coverage`: general lease clauses are visible enough to review.
+- `R8_renewal_notice_window`: renewal options include an extracted notice deadline.
+- `R9_additional_rent_audit_visibility`: additional rent/CAM terms have visible audit/review rights.
+- `R10_assignment_consent_standard`: assignment/sublease consent is flagged when broadly discretionary.
+- `R11_termination_rights_asymmetry`: termination rights are flagged when extracted text appears one-sided.
 
 See [docs/rules.md](docs/rules.md), [docs/dealsheet.md](docs/dealsheet.md), [docs/providers.md](docs/providers.md), [docs/mcp.md](docs/mcp.md), and [docs/mac-app.md](docs/mac-app.md).
 
 ## Privacy and Security
 
-Do not commit real leases. The repository should only contain synthetic fixtures. Redline sends extracted lease text to the selected provider unless you use local Ollama. Use remote providers only where outbound API processing is acceptable.
+Do not commit real documents. The repository should only contain synthetic fixtures. Redline sends extracted document text to the selected provider unless you use local Ollama. Use remote providers only where outbound API processing is acceptable.
 
-Redline is not a law firm and does not provide legal advice. It is a validation tool for lease math, dates, extracted facts, and cited evidence.
+Redline is not a law firm and does not provide legal advice. It is a validation tool for lease math, review context, dates, extracted facts, and cited evidence.
 
 See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md).
 

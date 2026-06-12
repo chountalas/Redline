@@ -215,7 +215,7 @@ struct DocSwitcher: View {
             Button { ws.openRunSheet(); open = false } label: {
                 HStack(spacing: 11) {
                     RLIcon("plus", size: 14).foregroundStyle(rl.accent).frame(width: 9)
-                    Text("Check a new PDF…").font(rl.ui(13.5, .medium)).foregroundStyle(rl.ink)
+                    Text("Review a new PDF…").font(rl.ui(13.5, .medium)).foregroundStyle(rl.ink)
                     Spacer()
                 }
                 .padding(.horizontal, 12).padding(.vertical, 9)

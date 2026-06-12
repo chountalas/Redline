@@ -57,7 +57,8 @@ enum ReportAdapter {
             )
         }
 
-        let findings = report.deterministicFindings.enumerated().map { mapFinding($1, index: $0) }
+        let deterministic = dedupedFindings(report.deterministicFindings + report.couldNotVerify)
+        let findings = deterministic.enumerated().map { mapFinding($1, index: $0) }
         let advisory = report.advisoryFindings.enumerated().map { mapFinding($1, index: 1000 + $0) }
 
         let document: [DocPage] = pages.keys.sorted().map { page in
@@ -75,26 +76,28 @@ enum ReportAdapter {
 
         let sub: String
         if errorCount > 0 {
-            sub = "Each problem cites a clause you can verify against the source."
+            sub = "Each issue cites a clause you can verify against the source document."
         } else if warnCount > 0 {
-            sub = "A couple of items are worth a look — none of them block signing."
+            sub = "A couple of items are worth a look — none of them block approval."
         } else {
             sub = "Every deterministic check ran clean."
         }
 
         let pageCount = report.factsSummary?.pageCount ?? (pages.keys.max() ?? 1)
+        let profileName = report.profile?.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reviewKind = ((profileName?.isEmpty == false ? profileName : nil) ?? "General lease") + " review"
 
         return ReviewDoc(
             id: id,
             name: documentName(from: source, fallback: report.factsSummary?.sourceFile),
-            kind: "Lease check",
+            kind: reviewKind,
             type: "lease",
-            party: source.dealSheet != nil ? "Checked against deal sheet" : "Uploaded PDF",
+            party: source.dealSheet != nil ? "Compared with term sheet" : "Uploaded PDF",
             pages: pageCount,
             deal: !dealTerms.isEmpty || source.dealSheet != nil,
             verdict: Verdict(
                 level: (report.exitCode != 0 || errorCount > 0) ? "error" : "pass",
-                headline: errorCount > 0 ? "Do not sign" : "Clears all checks",
+                headline: errorCount > 0 ? "Needs review" : "Clears all checks",
                 lead: lead,
                 sub: sub
             ),
@@ -109,6 +112,25 @@ enum ReportAdapter {
 
     // MARK: helpers
 
+    private static func dedupedFindings(_ findings: [Finding]) -> [Finding] {
+        var seen = Set<String>()
+        return findings.filter { finding in
+            let evidenceKey = finding.evidence.map {
+                "\($0.page.map(String.init) ?? ""):\($0.quote ?? "")"
+            }.joined(separator: "|")
+            let key = [
+                finding.ruleID,
+                finding.severity,
+                finding.title,
+                finding.detail,
+                finding.expected ?? "",
+                finding.actual ?? "",
+                evidenceKey,
+            ].joined(separator: "\u{1f}")
+            return seen.insert(key).inserted
+        }
+    }
+
     private static func documentName(from source: RunSource, fallback: String?) -> String {
         if let filename = source.originalLeaseFilename?.trimmingCharacters(in: .whitespacesAndNewlines),
            !filename.isEmpty {
@@ -119,7 +141,7 @@ enum ReportAdapter {
         if let fallback, !fallback.isEmpty {
             return (fallback as NSString).deletingPathExtension
         }
-        return "Lease"
+        return "Document"
     }
 
     private static func keyTerms(from facts: FactsSummary?) -> [KeyTerm] {
@@ -132,6 +154,12 @@ enum ReportAdapter {
         if let v = facts.perFaceRent { terms.append(KeyTerm(k: "Per-face rent", v: v)) }
         if let v = facts.numDisplayFaces { terms.append(KeyTerm(k: "Display faces", v: String(v))) }
         if let v = facts.baseTermYears { terms.append(KeyTerm(k: "Base term", v: "\(v) yr")) }
+        if let v = facts.securityDeposit { terms.append(KeyTerm(k: "Security deposit", v: v)) }
+        if let v = facts.defaultCurePeriodDays { terms.append(KeyTerm(k: "Default cure", v: "\(v) days")) }
+        if let v = facts.renewalNoticeDeadlineDays {
+            terms.append(KeyTerm(k: "Renewal notice", v: "\(v) days"))
+        }
+        if let v = facts.permittedUse { terms.append(KeyTerm(k: "Permitted use", v: v)) }
         if let v = facts.pageCount { terms.append(KeyTerm(k: "Pages", v: String(v))) }
         return terms
     }

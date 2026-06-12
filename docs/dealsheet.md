@@ -1,6 +1,6 @@
-# Deal Sheet
+# Comparison Sheet
 
-`deal.yaml` is optional. It lets Redline compare a draft lease against negotiated intent, which is the only way to catch an internally consistent lease that uses the wrong business terms.
+`deal.yaml` is optional for lease profiles. It lets Redline compare a draft lease against negotiated intent, which is the only way to catch an internally consistent lease that uses the wrong business terms.
 
 Every field may be omitted.
 
@@ -24,4 +24,3 @@ total_rent: "CAD 400000"
 ```
 
 Redline treats `escalation_pct: 2` as two percent, not `0.02`.
-
