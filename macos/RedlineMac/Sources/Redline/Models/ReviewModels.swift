@@ -120,7 +120,7 @@ struct Verdict: Codable {
 }
 
 /// Inputs captured for an engine-backed document so "Re-check" can re-run it.
-struct RunSource: Codable {
+struct RunSource: Codable, Sendable {
     var leasePDF: URL
     var originalLeaseFilename: String? = nil
     var dealSheet: URL?

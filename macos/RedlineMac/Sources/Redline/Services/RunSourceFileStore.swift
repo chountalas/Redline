@@ -20,7 +20,7 @@ enum RunSourceImportError: LocalizedError, Equatable {
     }
 }
 
-struct PreparedRunSource {
+struct PreparedRunSource: Sendable {
     var runtime: RunSource
     var persisted: RunSource
 }
@@ -70,6 +70,18 @@ enum RunSourceFileStore {
         persisted.apiKey = ""
         if !persistThread { persisted.thread = "" }
         return PreparedRunSource(runtime: runtime, persisted: persisted)
+    }
+
+    static func prepareInBackground(
+        _ source: RunSource,
+        storeURL: URL,
+        persistThread: Bool,
+        didBegin: (@Sendable () -> Void)? = nil
+    ) async throws -> PreparedRunSource {
+        try await Task.detached(priority: .userInitiated) {
+            didBegin?()
+            return try prepare(source, storeURL: storeURL, persistThread: persistThread)
+        }.value
     }
 
     private enum SourceKind { case leasePDF, dealSheet }

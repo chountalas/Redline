@@ -56,6 +56,80 @@ final class WorkspaceRunFlowTests: XCTestCase {
         }
     }
 
+    private actor AsyncGate {
+        private var isOpen = false
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+
+        func wait() async {
+            if isOpen { return }
+            await withCheckedContinuation { continuation in
+                waiters.append(continuation)
+            }
+        }
+
+        func open() {
+            guard !isOpen else { return }
+            isOpen = true
+            let pending = waiters
+            waiters.removeAll()
+            pending.forEach { $0.resume() }
+        }
+    }
+
+    private actor PrepareCoordinator {
+        private let firstStarted = AsyncGate()
+        private let releaseFirst = AsyncGate()
+        private var calls = 0
+
+        func prepare(source: RunSource, storeURL: URL, persistThread: Bool) async throws -> PreparedRunSource {
+            calls += 1
+            if calls == 1 {
+                await firstStarted.open()
+                await releaseFirst.wait()
+            }
+            return try RunSourceFileStore.prepare(source, storeURL: storeURL, persistThread: persistThread)
+        }
+
+        func waitForFirstStart() async {
+            await firstStarted.wait()
+        }
+
+        func releaseFirst() async {
+            await releaseFirst.open()
+        }
+    }
+
+    private final class HoldingRunner: RedlineRunning {
+        var leasePDF: URL?
+        let report: CheckReport
+        private let releaseGate = AsyncGate()
+
+        init(report: CheckReport) {
+            self.report = report
+        }
+
+        func run(
+            leasePDF: URL,
+            dealSheet: URL?,
+            context: String,
+            failOn: FailOn,
+            provider: LLMProvider,
+            model: String,
+            baseURL: String,
+            apiKey: String,
+            thread: String,
+            onLaunch: @Sendable (Process) -> Void
+        ) async throws -> CheckReport {
+            self.leasePDF = leasePDF
+            await releaseGate.wait()
+            return report
+        }
+
+        func release() async {
+            await releaseGate.open()
+        }
+    }
+
     private func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("redline-workspace-run-\(UUID().uuidString)", isDirectory: true)
@@ -95,6 +169,14 @@ final class WorkspaceRunFlowTests: XCTestCase {
     }
 
     private func waitForRunnerCall(_ runner: CapturingRunner) async throws {
+        for _ in 0..<120 {
+            if runner.leasePDF != nil { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("Timed out waiting for runner call")
+    }
+
+    private func waitForHoldingRunnerCall(_ runner: HoldingRunner) async throws {
         for _ in 0..<120 {
             if runner.leasePDF != nil { return }
             try await Task.sleep(for: .milliseconds(10))
@@ -162,6 +244,55 @@ final class WorkspaceRunFlowTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: droppedLease.deletingLastPathComponent().path))
         XCTAssertEqual(runner.leasePDF?.deletingLastPathComponent().lastPathComponent, "Imported Sources")
         XCTAssertEqual(ws.documents.first?.source?.originalLeaseFilename, "Dropped Lease.pdf")
+    }
+
+    func testCancelledImportCannotClearNewRunState() async throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let firstRepresentation = dir.appendingPathComponent("first-drop-representation.pdf")
+        let secondLease = dir.appendingPathComponent("second.pdf")
+        try "%PDF-1.4\n".write(to: firstRepresentation, atomically: true, encoding: .utf8)
+        try "%PDF-1.4\n".write(to: secondLease, atomically: true, encoding: .utf8)
+        let firstLease = try RunSheetFileIntake.copyDroppedPDFToTemporaryURL(
+            firstRepresentation,
+            suggestedName: "First dropped.pdf"
+        )
+
+        let coordinator = PrepareCoordinator()
+        let runner = try HoldingRunner(report: report())
+        let ws = Workspace(
+            storeURL: dir.appendingPathComponent("library.json"),
+            runner: runner,
+            prepareRunSource: { source, storeURL, persistThread in
+                try await coordinator.prepare(source: source, storeURL: storeURL, persistThread: persistThread)
+            }
+        )
+
+        ws.startRun(
+            leasePDF: firstLease,
+            deal: DealContext(thread: "", dealSheet: nil, context: "", saveThread: false)
+        )
+        await coordinator.waitForFirstStart()
+        ws.cancelRun()
+
+        ws.startRun(
+            leasePDF: secondLease,
+            deal: DealContext(thread: "", dealSheet: nil, context: "", saveThread: false)
+        )
+        try await waitForHoldingRunnerCall(runner)
+        XCTAssertTrue(ws.run.isRunning)
+
+        await coordinator.releaseFirst()
+        try await Task.sleep(for: .milliseconds(80))
+
+        XCTAssertTrue(ws.run.isRunning)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: firstLease.deletingLastPathComponent().path))
+        XCTAssertEqual(runner.leasePDF?.deletingLastPathComponent().lastPathComponent, "Imported Sources")
+
+        await runner.release()
+        try await waitForDocument(ws)
+        XCTAssertEqual(ws.documents.first?.source?.originalLeaseFilename, "second.pdf")
     }
 
     func testStartRunPersistsThreadWhenUserOptsIn() async throws {

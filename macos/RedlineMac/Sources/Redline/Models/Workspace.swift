@@ -28,6 +28,8 @@ struct PendingRunRetry {
     var saveThread: Bool
 }
 
+typealias RunSourcePreparing = @Sendable (RunSource, URL, Bool) async throws -> PreparedRunSource
+
 /// Owns everything the three panes share: the library, the selected document, the
 /// bidirectional report↔document sync, per-document review/notes, the re-check
 /// animation, the live engine run, and the settings (the old design-host "Tweaks").
@@ -80,6 +82,7 @@ final class Workspace {
     var run: RunPhase = .idle
     private var runTask: Task<Void, Never>?
     private var runProcess: Process?
+    private var activeRunID: UUID?
     private var cancelRequested = false
 
     // View-compat shims so existing views keep compiling (HomeView/WorkspaceView/ContentView).
@@ -102,10 +105,22 @@ final class Workspace {
     private let runner: any RedlineRunning
     private var checkTask: Task<Void, Never>?
     private let storeURL: URL
+    private let prepareRunSource: RunSourcePreparing
 
-    init(storeURL: URL = LibraryStore.defaultURL(), runner: (any RedlineRunning)? = nil) {
+    init(
+        storeURL: URL = LibraryStore.defaultURL(),
+        runner: (any RedlineRunning)? = nil,
+        prepareRunSource: @escaping RunSourcePreparing = { source, storeURL, persistThread in
+            try await RunSourceFileStore.prepareInBackground(
+                source,
+                storeURL: storeURL,
+                persistThread: persistThread
+            )
+        }
+    ) {
         self.storeURL = storeURL
         self.runner = runner ?? RedlineRunner(repoRoot: RedlineRunner.defaultRepoRoot())
+        self.prepareRunSource = prepareRunSource
         let storeExistedBeforeLoad = FileManager.default.fileExists(atPath: storeURL.path)
         // Restore the library if a snapshot exists; otherwise open to the first-run invite.
         if let snap = LibraryStore.load(from: storeURL) {
@@ -236,7 +251,7 @@ final class Workspace {
         }
         var src = source
         src.apiKey = apiKey   // live key from Settings; persisted source.apiKey is "" after relaunch
-        runTask = Task { await runEngine(source: src, replacingDocID: doc.id, persistThread: !src.thread.isEmpty) }
+        startEngineRun(source: src, replacingDocID: doc.id, persistThread: !src.thread.isEmpty)
     }
 
     private func playCheckingAnimation() {
@@ -277,7 +292,7 @@ final class Workspace {
             return
         }
         showRunSheet = false
-        runTask = Task { await runEngine(source: source, replacingDocID: nil, persistThread: deal.saveThread) }
+        startEngineRun(source: source, replacingDocID: nil, persistThread: deal.saveThread)
     }
 
     func cancelRunSheet() {
@@ -289,6 +304,8 @@ final class Workspace {
         cancelRequested = true
         runProcess?.terminate()
         runTask?.cancel()
+        activeRunID = nil
+        runTask = nil
         checkTask?.cancel()
         runProcess = nil
         showRunSheet = false
@@ -308,7 +325,26 @@ final class Workspace {
         run = .idle
     }
 
-    private func runEngine(source: RunSource, replacingDocID: String?, persistThread: Bool) async {
+    private func startEngineRun(source: RunSource, replacingDocID: String?, persistThread: Bool) {
+        let runID = UUID()
+        activeRunID = runID
+        runTask = Task {
+            await runEngine(source: source, replacingDocID: replacingDocID, persistThread: persistThread, runID: runID)
+        }
+    }
+
+    private func isCurrentRun(_ runID: UUID) -> Bool {
+        activeRunID == runID
+    }
+
+    private func finishRun(_ runID: UUID) {
+        guard isCurrentRun(runID) else { return }
+        activeRunID = nil
+        runTask = nil
+    }
+
+    private func runEngine(source: RunSource, replacingDocID: String?, persistThread: Bool, runID: UUID) async {
+        guard isCurrentRun(runID) else { return }
         cancelRequested = false
         pendingRetry = nil
         run = .running(step: 0)
@@ -316,12 +352,40 @@ final class Workspace {
 
         let prepared: PreparedRunSource
         do {
-            prepared = try RunSourceFileStore.prepare(source, storeURL: storeURL, persistThread: persistThread)
+            prepared = try await prepareRunSource(
+                source,
+                storeURL,
+                persistThread
+            )
+            guard isCurrentRun(runID) else {
+                cleanupSourceFiles(from: prepared.runtime)
+                cleanupSourceFiles(from: source)
+                return
+            }
+            if Task.isCancelled {
+                cleanupSourceFiles(from: prepared.runtime)
+                run = .idle
+                finishRun(runID)
+                return
+            }
             retrySource = prepared.runtime
             cleanupSourceFiles(from: source, preserving: prepared.runtime)
+        } catch is CancellationError {
+            guard isCurrentRun(runID) else {
+                cleanupSourceFiles(from: source)
+                return
+            }
+            run = .idle
+            finishRun(runID)
+            return
         } catch {
+            guard isCurrentRun(runID) else {
+                cleanupSourceFiles(from: source)
+                return
+            }
             run = .failed(RunFailure.map(error))
             pendingRetry = PendingRunRetry(source: source, saveThread: persistThread)
+            finishRun(runID)
             return
         }
 
@@ -331,7 +395,8 @@ final class Workspace {
             for i in 1...cap {
                 try? await Task.sleep(for: .milliseconds(700))
                 if Task.isCancelled { return }
-                self?.run = .running(step: i)
+                guard let self, self.isCurrentRun(runID) else { return }
+                self.run = .running(step: i)
             }
         }
 
@@ -349,7 +414,7 @@ final class Workspace {
                 onLaunch: { [weak self] process in
                     Task { @MainActor in
                         guard let self else { return }
-                        if self.cancelRequested {
+                        if self.cancelRequested || !self.isCurrentRun(runID) {
                             process.terminate()   // cancel beat the launch hop — kill it now
                         } else {
                             self.runProcess = process
@@ -357,6 +422,11 @@ final class Workspace {
                     }
                 }
             )
+            guard isCurrentRun(runID) else {
+                stepper.cancel()
+                cleanupSourceFiles(from: prepared.runtime)
+                return
+            }
             stepper.cancel()
             runProcess = nil
             run = .running(step: CHECK_STEPS.count)
@@ -371,20 +441,31 @@ final class Workspace {
             resetSelection(for: newDoc)
             screen = .workspace   // a run started from Home lands in the workspace on its result
             try? await Task.sleep(for: .milliseconds(350))
-            run = .idle
+            if isCurrentRun(runID) {
+                run = .idle
+                finishRun(runID)
+            }
         } catch {
+            guard isCurrentRun(runID) else {
+                stepper.cancel()
+                cleanupSourceFiles(from: prepared.runtime)
+                return
+            }
             stepper.cancel()
             runProcess = nil
             if error is CancellationError {
                 cleanupSourceFiles(from: prepared.runtime)
                 run = .idle
+                finishRun(runID)
             } else if case RedlineRunError.cancelled = error {
                 cleanupSourceFiles(from: prepared.runtime)
                 run = .idle
+                finishRun(runID)
             }
             else {
                 pendingRetry = PendingRunRetry(source: retrySource, saveThread: persistThread)
                 run = .failed(RunFailure.map(error))
+                finishRun(runID)
             }
         }
     }

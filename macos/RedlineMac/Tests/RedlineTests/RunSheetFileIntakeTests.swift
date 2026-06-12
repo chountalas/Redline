@@ -3,6 +3,19 @@ import XCTest
 @testable import Redline
 
 final class RunSheetFileIntakeTests: XCTestCase {
+    private final class ThreadProbe: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recordedValue: Bool?
+
+        var recordedMainThreadValue: Bool? {
+            lock.withLock { recordedValue }
+        }
+
+        func recordCurrentThread() {
+            lock.withLock { recordedValue = Thread.isMainThread }
+        }
+    }
+
     func testLeaseDropAcceptsFinderFileURLsAndPDFItems() {
         XCTAssertTrue(RunSheetFileIntake.leaseDropTypes.contains(.fileURL))
         XCTAssertTrue(RunSheetFileIntake.leaseDropTypes.contains(.pdf))
@@ -128,6 +141,34 @@ final class RunSheetFileIntakeTests: XCTestCase {
         XCTAssertEqual(prepared.runtime.thread, "thread")
         XCTAssertEqual(prepared.persisted.thread, "")
         XCTAssertEqual(prepared.persisted.apiKey, "")
+    }
+
+    func testSourceFileStorePrepareInBackgroundCopiesOffMainThread() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("redline-import-background-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        let lease = root.appendingPathComponent("original lease.pdf")
+        try "%PDF-1.4\n".write(to: lease, atomically: true, encoding: .utf8)
+        let storeURL = root.appendingPathComponent("Redline").appendingPathComponent("library.json")
+        let source = RunSource(
+            leasePDF: lease, dealSheet: nil, context: "ctx",
+            failOn: .error, provider: .codex, model: "", baseURL: "",
+            apiKey: "secret", thread: "thread")
+        let probe = ThreadProbe()
+
+        let prepared = try await RunSourceFileStore.prepareInBackground(
+            source,
+            storeURL: storeURL,
+            persistThread: false,
+            didBegin: { probe.recordCurrentThread() }
+        )
+
+        XCTAssertEqual(probe.recordedMainThreadValue, false)
+        XCTAssertNotEqual(prepared.runtime.leasePDF, lease)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.runtime.leasePDF.path))
+        XCTAssertEqual(prepared.runtime.leasePDF.deletingLastPathComponent().lastPathComponent, "Imported Sources")
     }
 
     func testSourceFileStorePreservesThreadWhenRequested() throws {
