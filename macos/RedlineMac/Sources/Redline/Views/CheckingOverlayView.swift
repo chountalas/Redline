@@ -14,7 +14,7 @@ struct CheckingOverlayView: View {
                 RLIcon("spark", size: 18).foregroundStyle(rl.ai)
                     .frame(width: 34, height: 34)
                     .background(rl.aiSoft, in: RoundedRectangle(cornerRadius: 10))
-                Text(doc.map { "Re-checking \($0.name)" } ?? "Checking your lease")
+                Text(doc.map { "Re-checking \($0.name)" } ?? "Checking your document")
                     .font(rl.serif(23, .medium)).foregroundStyle(rl.ink)
             }
             Text(doc.map { "\($0.kind) · \($0.pages) pages" } ?? "Reading the document and running the checks")

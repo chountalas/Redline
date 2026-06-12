@@ -20,21 +20,25 @@ def main() -> None:
     @mcp.tool()
     def check_lease(
         path: str,
+        profile: str = "lease-general",
         deal_path: str | None = None,
         thread_path: str | None = None,
         context: str | None = None,
+        context_path: str | None = None,
         fail_on: FailOn = "error",
         provider: str | None = None,
         model: str | None = None,
         base_url: str | None = None,
     ) -> dict[str, Any]:
-        """Validate a lease PDF and return Redline's structured report."""
+        """Review a lease PDF with Redline. Profiles: lease-general or lease-math."""
 
         report = run_check_lease(
             path,
+            profile=profile,
             deal_path=deal_path,
             thread_path=thread_path,
             context=context,
+            context_path=context_path,
             fail_on=fail_on,
             provider=provider,
             model=model,

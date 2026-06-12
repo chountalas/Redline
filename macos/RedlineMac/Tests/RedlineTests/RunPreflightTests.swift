@@ -9,7 +9,7 @@ final class RunPreflightTests: XCTestCase {
             environment: [:])
 
         XCTAssertFalse(result.canRun)
-        XCTAssertEqual(result.message, "Choose a lease PDF.")
+        XCTAssertEqual(result.message, "Choose a PDF document.")
     }
 
     func testRejectsNonPDFLeaseBeforeLaunchingEngine() {
@@ -19,7 +19,7 @@ final class RunPreflightTests: XCTestCase {
             environment: [:])
 
         XCTAssertFalse(result.canRun)
-        XCTAssertEqual(result.message, "Use a PDF lease.")
+        XCTAssertEqual(result.message, "Use an extractable PDF document.")
     }
 
     func testRejectsNonYAMLDealSheetBeforeLaunchingEngine() {
@@ -30,7 +30,7 @@ final class RunPreflightTests: XCTestCase {
             environment: [:])
 
         XCTAssertFalse(result.canRun)
-        XCTAssertEqual(result.message, "Deal sheet must be a .yaml or .yml file.")
+        XCTAssertEqual(result.message, "Comparison sheet must be a .yaml or .yml file.")
     }
 
     func testOpenAIRequiresModelAndAPIKey() {

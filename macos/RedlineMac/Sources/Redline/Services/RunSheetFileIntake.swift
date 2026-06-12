@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 enum RunSheetFileIntake {
     static let leaseDropTypes: [UTType] = [.fileURL, .pdf]
+    static let documentDropTypes: [UTType] = leaseDropTypes
 
     static func isPDF(_ url: URL) -> Bool {
         if let type = UTType(filenameExtension: url.pathExtension) {
@@ -42,7 +43,7 @@ enum RunSheetFileIntake {
     }
 
     static func droppedPDFFilename(from url: URL, suggestedName: String?) -> String {
-        let rawName = cleanFilename(suggestedName) ?? cleanFilename(url.lastPathComponent) ?? "lease.pdf"
+        let rawName = cleanFilename(suggestedName) ?? cleanFilename(url.lastPathComponent) ?? "document.pdf"
         let rawURL = URL(fileURLWithPath: rawName)
         guard !rawURL.pathExtension.isEmpty else { return "\(rawName).pdf" }
         guard !isPDF(rawURL) else { return rawName }

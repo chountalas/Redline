@@ -85,8 +85,8 @@ def by_rule(findings, rule_id: str):
     return [finding for finding in findings if finding.rule_id == rule_id]
 
 
-def test_clean_synthetic_facts_only_emit_info() -> None:
-    findings = validate_rules(facts())
+def test_clean_synthetic_facts_only_emit_info_for_lease_math_profile() -> None:
+    findings = validate_rules(facts(), profile="lease-math")
 
     assert [finding.severity for finding in findings] == [Severity.INFO]
     assert findings[0].rule_id == "R5_term_date_coherence"
@@ -243,3 +243,74 @@ def test_pembina_fixture_has_exact_r2_error() -> None:
     assert finding.severity == Severity.ERROR
     assert finding.expected == "CAD 800,000.00"
     assert finding.actual == "CAD 400,000.00"
+
+
+def test_default_profile_adds_general_clause_coverage() -> None:
+    findings = validate_rules(facts())
+
+    coverage = by_rule(findings, "R7_general_lease_clause_coverage")
+
+    assert coverage
+    assert any(f.title == "Could not verify permitted use" for f in coverage)
+
+
+def test_lease_math_profile_excludes_general_clause_coverage() -> None:
+    findings = validate_rules(facts(), profile="lease-math")
+
+    assert not by_rule(findings, "R7_general_lease_clause_coverage")
+
+
+def test_lease_general_warns_on_renewal_without_notice_deadline() -> None:
+    lease_facts = facts(
+        renewal_options=ExtractedValue[list[Decimal]](
+            value=[Decimal("5")], quote="Tenant has one five-year renewal option.", page=4
+        ),
+        renewal_notice_deadline_days=ExtractedValue[int](value=None),
+    )
+
+    finding = by_rule(
+        validate_rules(lease_facts, profile="lease-general"),
+        "R8_renewal_notice_window",
+    )[0]
+
+    assert finding.severity == Severity.WARN
+    assert "notice deadline" in finding.title
+
+
+def test_lease_general_warns_on_additional_rent_without_audit_rights() -> None:
+    lease_facts = facts(
+        additional_rent_terms=ExtractedValue[str](
+            value="Tenant shall pay its proportionate share of operating expenses.",
+            quote="Tenant shall pay its proportionate share of operating expenses.",
+            page=7,
+        ),
+        cam_audit_rights=ExtractedValue[str](value=None),
+    )
+
+    finding = by_rule(
+        validate_rules(lease_facts, profile="lease-general"),
+        "R9_additional_rent_audit_visibility",
+    )[0]
+
+    assert finding.severity == Severity.WARN
+    assert "audit rights" in finding.title
+
+
+def test_lease_general_warns_on_discretionary_assignment_consent() -> None:
+    lease_facts = facts(
+        assignment_sublease_consent=ExtractedValue[str](
+            value=(
+                "Tenant may not assign without Landlord's consent, which may be withheld "
+                "in Landlord's sole discretion."
+            ),
+            quote="withheld in Landlord's sole discretion",
+            page=8,
+        )
+    )
+
+    finding = by_rule(
+        validate_rules(lease_facts, profile="lease-general"),
+        "R10_assignment_consent_standard",
+    )[0]
+
+    assert finding.severity == Severity.WARN

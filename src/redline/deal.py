@@ -14,17 +14,17 @@ def load_deal_sheet(path: str | Path) -> DealSheet:
     deal_path = Path(path)
     try:
         raw: Any = yaml.safe_load(deal_path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise DealSheetError(f"Could not read deal sheet: {deal_path}") from exc
+    except (OSError, UnicodeError) as exc:
+        raise DealSheetError(f"Could not read comparison sheet: {deal_path}") from exc
     except yaml.YAMLError as exc:
-        raise DealSheetError(f"Invalid YAML in deal sheet: {deal_path}") from exc
+        raise DealSheetError(f"Invalid YAML in comparison sheet: {deal_path}") from exc
 
     if raw is None:
         raw = {}
     if not isinstance(raw, dict):
-        raise DealSheetError("Deal sheet must be a YAML mapping.")
+        raise DealSheetError("Comparison sheet must be a YAML mapping.")
 
     try:
         return DealSheet.model_validate(raw)
     except ValidationError as exc:
-        raise DealSheetError(f"Invalid deal sheet: {exc}") from exc
+        raise DealSheetError(f"Invalid comparison sheet: {exc}") from exc

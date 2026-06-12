@@ -16,7 +16,7 @@ let CHECK_STEPS: [CheckStep] = [
     CheckStep(lab: "Running the checks", nt: "exact rules, no guessing"),
 ]
 
-/// A request to open a source lease PDF at a cited page (G6). Transient UI state only.
+/// A request to open a source PDF at a cited page (G6). Transient UI state only.
 struct SourcePageRequest: Identifiable {
     let id = UUID()
     let url: URL
@@ -73,6 +73,7 @@ final class Workspace {
 
     // AI provider config — was collected per-run in the modal; now set once here and
     // reused by every run and re-check. The run modal only reflects these read-only.
+    var profile: ReviewProfile = .leaseGeneral { didSet { persistSettings() } }
     var provider: LLMProvider = .codex { didSet { persistSettings() } }
     var model: String = LLMProvider.codex.defaultModel { didSet { persistSettings() } }
     var baseURL: String = LLMProvider.codex.defaultBaseURL { didSet { persistSettings() } }
@@ -250,7 +251,18 @@ final class Workspace {
             return
         }
         var src = source
-        src.apiKey = apiKey   // live key from Settings; persisted source.apiKey is "" after relaunch
+        if src.reviewContextState == .unsaved,
+           src.thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            pendingRetry = PendingRunRetry(source: src, saveThread: false)
+            showRunSheet = true
+            return
+        }
+        // Re-checks use the current AI settings; persisted sources never contain an API key.
+        src.profile = profile
+        src.provider = provider
+        src.model = model
+        src.baseURL = baseURL
+        src.apiKey = apiKey
         startEngineRun(source: src, replacingDocID: doc.id, persistThread: !src.thread.isEmpty)
     }
 
@@ -278,8 +290,10 @@ final class Workspace {
         guard !run.isRunning else { return }
         var source = RunSource(
             leasePDF: leasePDF, dealSheet: deal.dealSheet, context: deal.context,
-            failOn: .error, provider: provider, model: model,
+            profile: profile, failOn: .error, provider: provider, model: model,
             baseURL: baseURL, apiKey: apiKey, thread: deal.thread)
+        let hasReviewContext = !deal.thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        source.reviewContextState = hasReviewContext ? (deal.saveThread ? .saved : .unsaved) : .none
         source.originalLeaseFilename = cleanOriginalLeaseFilename(originalLeaseFilename) ?? leasePDF.lastPathComponent
         discardPendingRetry(preserving: source)
         let preflight = RunPreflight.validate(
@@ -403,8 +417,12 @@ final class Workspace {
         do {
             let report = try await runner.run(
                 leasePDF: prepared.runtime.leasePDF,
+                profile: prepared.runtime.profile,
                 dealSheet: prepared.runtime.dealSheet,
-                context: prepared.runtime.context,
+                context: ReviewContextBuilder.advisoryFocus(
+                    explicitFocus: prepared.runtime.context,
+                    reviewContext: prepared.runtime.thread
+                ),
                 failOn: prepared.runtime.failOn,
                 provider: prepared.runtime.provider,
                 model: prepared.runtime.model,
@@ -620,6 +638,9 @@ final class Workspace {
             provider = p; model = d.string(forKey: "rl.model") ?? p.defaultModel
             baseURL = d.string(forKey: "rl.baseURL") ?? p.defaultBaseURL
         }
+        if let raw = d.string(forKey: "rl.profile"), let p = ReviewProfile(rawValue: raw) {
+            profile = p
+        }
         // apiKey is intentionally NOT restored — never persisted.
     }
 
@@ -627,6 +648,7 @@ final class Workspace {
         let d = UserDefaults.standard
         d.set(isDark, forKey: "rl.isDark"); d.set(accentHex, forKey: "rl.accentHex")
         d.set(layout.rawValue, forKey: "rl.layout"); d.set(Double(docSize), forKey: "rl.docSize")
+        d.set(profile.rawValue, forKey: "rl.profile")
         d.set(provider.rawValue, forKey: "rl.provider"); d.set(model, forKey: "rl.model")
         d.set(baseURL, forKey: "rl.baseURL")
     }

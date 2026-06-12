@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Add `lease-general` as the default profile while keeping `lease-math` for the narrow billboard/per-display-face lane.
+- Add deterministic general lease coverage for permitted use, assignment/sublease, maintenance, insurance, cure periods, notices, additional rent/CAM, renewal notice windows, and termination asymmetry.
+- Generalize the Mac app shell around document review while keeping the active review profile explicit.
+- Add easier review-context entry, context templates, clipboard paste, and long-context `--context-file` handling.
+- Add profile/document/context/coverage metadata to reports.
+- Prevent silent re-checks when prior context was intentionally not saved.
+- Route `could_not_verify` findings into the Mac report even when the engine does not duplicate them in deterministic findings.
+
 ## 0.1.2 - 2026-06-06
 
 - Clarify Homebrew as the public install path for the app, CLI, MCP server, and provider adapters.

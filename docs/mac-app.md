@@ -69,9 +69,10 @@ Other modes:
 
 ## Workflow
 
-- Choose or drop a lease PDF.
-- Optionally choose a `deal.yaml`.
-- Optionally enter a focus prompt for advisory findings.
+- Choose or drop a PDF document.
+- Choose a review profile: General lease or Lease math.
+- Optionally choose a comparison sheet (`deal.yaml` for the lease profile).
+- Optionally enter comparison context or a focus prompt for advisory findings.
 - Choose a provider: Codex subscription, OpenAI API, Ollama local, or explicit Anthropic.
 - Enter an API key only for remote providers.
 - Run the check and review deterministic and advisory findings.
@@ -85,7 +86,7 @@ The document library, per-finding notes, review state, and non-secret settings a
 The app invokes:
 
 ```bash
-uv run redline check <lease.pdf> --json --provider <provider>
+uv run redline check <document.pdf> --json --profile <profile> --provider <provider>
 ```
 
-from the repository root when launched from a source checkout. When the app is installed outside a checkout, it invokes the installed `redline` CLI directly. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path.
+from the repository root when launched from a source checkout. Long review context is passed through a temporary `--context-file`, not as a long command-line argument. When the app is installed outside a checkout, it invokes the installed `redline` CLI directly. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path. The default production CLI profile is `lease-general`; `lease-math` remains available for the narrower per-display-face math lane.

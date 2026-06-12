@@ -74,7 +74,7 @@ final class RunFailureTests: XCTestCase {
     func testEngineDealSheetInvalidMapsToBadInput() {
         let f = RunFailure.map(RedlineRunError.engine(code: "deal_sheet_invalid", message: "bad yaml"))
         XCTAssertEqual(f.cause, .badInput)
-        XCTAssertEqual(f.guidance, "The deal sheet couldn't be read — check its formatting and try again.")
+        XCTAssertEqual(f.guidance, "The comparison sheet couldn't be read — check its formatting and try again.")
         XCTAssertEqual(f.raw, "bad yaml")
     }
     func testEngineUnknownCodeMapsToUnknown() {

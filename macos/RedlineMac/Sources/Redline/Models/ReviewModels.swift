@@ -4,7 +4,7 @@ import Foundation
 //
 // The v2 design collapses the engine's loud severities into a few things a reader
 // actually cares about (see ui2.jsx `bucket`):
-//   error            → problem  (must fix before signing)
+//   error            → problem  (must resolve before approval)
 //   warn / verify    → warn     (worth a look, won't block)
 //   info             → note     (informational)
 //   advisory         → ai       (AI suggestion, segregated)
@@ -112,6 +112,12 @@ struct DealTerm: Identifiable, Codable {
     var source: String   // "deal.yaml" | "thread"
 }
 
+enum ReviewContextState: String, Codable, Sendable {
+    case none
+    case saved
+    case unsaved
+}
+
 struct Verdict: Codable {
     var level: String   // "error" | "pass"
     var headline: String
@@ -125,15 +131,19 @@ struct RunSource: Codable, Sendable {
     var originalLeaseFilename: String? = nil
     var dealSheet: URL?
     var context: String
+    var profile: ReviewProfile = .leaseGeneral
     var failOn: FailOn
     var provider: LLMProvider
     var model: String
     var baseURL: String
     var apiKey: String = ""   // transient — NEVER persisted (excluded below)
     var thread: String = ""   // negotiation thread; persisted (unlike apiKey)
+    var reviewContextState: ReviewContextState = .none
 
     private enum CodingKeys: String, CodingKey {
-        case leasePDF, originalLeaseFilename, dealSheet, context, failOn, provider, model, baseURL, thread
+        case leasePDF, originalLeaseFilename, dealSheet, context, profile
+        case failOn, provider, model, baseURL
+        case thread, reviewContextState
         // apiKey deliberately excluded — the API key is never written to disk
     }
 }
@@ -149,11 +159,14 @@ extension RunSource {
         originalLeaseFilename = try c.decodeIfPresent(String.self, forKey: .originalLeaseFilename)
         dealSheet = try c.decodeIfPresent(URL.self, forKey: .dealSheet)
         context = try c.decode(String.self, forKey: .context)
+        profile = try c.decodeIfPresent(ReviewProfile.self, forKey: .profile) ?? .leaseGeneral
         failOn = try c.decode(FailOn.self, forKey: .failOn)
         provider = try c.decode(LLMProvider.self, forKey: .provider)
         model = try c.decode(String.self, forKey: .model)
         baseURL = try c.decode(String.self, forKey: .baseURL)
         thread = try c.decodeIfPresent(String.self, forKey: .thread) ?? ""
+        reviewContextState = try c.decodeIfPresent(ReviewContextState.self, forKey: .reviewContextState)
+            ?? (thread.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .none : .saved)
         // apiKey intentionally NOT decoded — never persisted; stays "" via its default.
     }
 }
@@ -250,9 +263,9 @@ func plainVerdict(_ doc: ReviewDoc) -> PlainVerdict {
     if problems > 0 {
         return PlainVerdict(
             level: .problem,
-            eyebrow: "Don’t sign yet",
-            head: problems == 1 ? "One problem to fix before signing"
-                                : "\(problems) problems to fix before signing",
+            eyebrow: "Review before approval",
+            head: problems == 1 ? "One issue to resolve before approval"
+                                : "\(problems) issues to resolve before approval",
             sub: doc.verdict.sub
         )
     }
@@ -260,14 +273,14 @@ func plainVerdict(_ doc: ReviewDoc) -> PlainVerdict {
         return PlainVerdict(
             level: .ok,
             eyebrow: "Nothing blocking",
-            head: "Safe to sign — a couple of things worth a look",
+            head: "Ready for approval — a couple of things worth a look",
             sub: doc.verdict.sub
         )
     }
     return PlainVerdict(
         level: .ok,
-        eyebrow: "Cleared to sign",
-        head: "Ready to sign",
-        sub: "All \(ran) checks passed" + (doc.deal ? ", including a match against your deal sheet." : ".")
+        eyebrow: "Cleared for approval",
+        head: "Ready for approval",
+        sub: "All \(ran) checks passed" + (doc.deal ? ", including a match against your comparison sheet." : ".")
     )
 }

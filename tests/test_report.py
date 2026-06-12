@@ -34,6 +34,39 @@ def test_deal_term_check_round_trips_and_defaults() -> None:
     assert report.deal_terms == []
 
 
+def test_report_includes_profile_document_context_and_coverage() -> None:
+    report = build_report(
+        facts(),
+        validate_rules(facts()),
+        [],
+        context_summary="Review context was provided.",
+    )
+    text = render_text(report)
+
+    assert report.profile.id == "lease-general"
+    assert report.document is not None
+    assert report.document.source_file == "synthetic.pdf"
+    assert report.context_summary == "Review context was provided."
+    assert any(item.label == "General lease clauses" for item in report.coverage)
+    assert "Profile — General lease (lease-general)" in text
+    assert "Context — Review context was provided." in text
+
+
+def test_report_can_render_narrow_lease_math_profile() -> None:
+    report = build_report(
+        facts(),
+        validate_rules(facts(), profile="lease-math"),
+        [],
+        profile="lease-math",
+    )
+
+    assert report.profile.id == "lease-math"
+    assert any(
+        item.label == "General lease clauses" and item.status == "not_supported"
+        for item in report.coverage
+    )
+
+
 def test_report_separates_could_not_verify_and_exit_code() -> None:
     facts = LeaseFacts(
         source_file="synthetic.pdf",
@@ -131,4 +164,4 @@ def test_build_deal_terms_mixed_verified_and_mismatch() -> None:
     terms = {t.label: t for t in build_deal_terms(deal, {}, r6)}
     assert terms["Total rent"].verified is True
     assert terms["Display faces"].verified is False
-    assert terms["Total rent"].source == "thread"  # provenance default
+    assert terms["Total rent"].source == "deal.yaml"  # provenance default

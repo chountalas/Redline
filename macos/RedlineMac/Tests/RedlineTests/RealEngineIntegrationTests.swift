@@ -17,6 +17,7 @@ final class RealEngineIntegrationTests: XCTestCase {
         let runner = RedlineRunner(repoRoot: repoRoot())
         let report = try await runner.run(
             leasePDF: leaseURL,
+            profile: .leaseGeneral,
             dealSheet: nil,
             context: "",
             failOn: .error,

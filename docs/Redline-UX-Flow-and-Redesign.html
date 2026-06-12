@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Redline UX Flow and Generalization Redesign</title>
+  <style>
+    :root {
+      --paper: #f6f1ea;
+      --panel: #fffaf3;
+      --panel-2: #f0e7db;
+      --ink: #191512;
+      --muted: #6b6259;
+      --soft: #91887d;
+      --line: #d9cfc1;
+      --line-strong: #bdaea0;
+      --accent: #c8302b;
+      --accent-dark: #8e1f1c;
+      --green: #4f765f;
+      --green-soft: #dce8df;
+      --blue: #2f6077;
+      --blue-soft: #dce9ee;
+      --amber: #a86f2a;
+      --amber-soft: #eee1cc;
+      --shadow: 0 18px 55px rgba(35, 25, 15, 0.11);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(255, 250, 243, 0.96), rgba(246, 241, 234, 0.97) 38%, #efe5d8 100%);
+    }
+
+    a { color: var(--accent-dark); }
+
+    .wrap {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      min-height: 78vh;
+      display: grid;
+      align-items: end;
+      padding: 58px 0 42px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+      gap: 42px;
+      align-items: end;
+    }
+
+    .eyebrow {
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { line-height: 1.05; margin: 0; letter-spacing: 0; }
+
+    h1 {
+      font-size: clamp(48px, 8vw, 108px);
+      max-width: 900px;
+      margin-top: 16px;
+    }
+
+    h2 {
+      font-size: clamp(30px, 4vw, 54px);
+      margin-bottom: 18px;
+    }
+
+    h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 76ch;
+    }
+
+    .lead {
+      font-size: clamp(19px, 2vw, 24px);
+      color: #3a322b;
+      margin-top: 18px;
+    }
+
+    .hero-panel {
+      background: rgba(255, 250, 243, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .verdict {
+      display: grid;
+      gap: 16px;
+    }
+
+    .verdict-mark {
+      display: inline-flex;
+      width: max-content;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(200, 48, 43, 0.35);
+      background: rgba(200, 48, 43, 0.1);
+      color: var(--accent-dark);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .meta {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--ink);
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+
+    section {
+      padding: 58px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(220px, 0.4fr) minmax(0, 1fr);
+      gap: 36px;
+      align-items: start;
+      margin-bottom: 28px;
+    }
+
+    .section-kicker {
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .grid-2,
+    .grid-3,
+    .grid-4 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .card strong,
+    .finding-title {
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fffdf8;
+      color: var(--muted);
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tag.fixed { color: var(--green); border-color: rgba(79, 118, 95, 0.35); background: var(--green-soft); }
+    .tag.open { color: var(--amber); border-color: rgba(168, 111, 42, 0.35); background: var(--amber-soft); }
+    .tag.deep { color: var(--blue); border-color: rgba(47, 96, 119, 0.35); background: var(--blue-soft); }
+
+    .flow {
+      width: 100%;
+      min-height: 360px;
+      background: #fffaf4;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+      overflow: hidden;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      display: table;
+    }
+
+    .table th,
+    .table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    .table th {
+      color: var(--ink);
+      background: var(--panel-2);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .table tr:last-child td { border-bottom: 0; }
+
+    .finding {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr) 160px;
+      gap: 18px;
+      align-items: start;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+
+    .severity {
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .severity.high { color: var(--accent-dark); }
+    .severity.medium { color: var(--amber); }
+    .severity.low { color: var(--blue); }
+
+    .status {
+      justify-self: end;
+      text-align: right;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status strong { display: block; color: var(--ink); }
+
+    .blueprint {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-item {
+      border: 1px solid var(--line);
+      background: #fffdf8;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .nav-item.active {
+      border-color: rgba(200, 48, 43, 0.45);
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .wire {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fffdf8;
+      padding: 14px;
+    }
+
+    .wire-header,
+    .wire-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 0;
+    }
+
+    .wire-header { padding-top: 0; }
+    .wire-row:last-child { border-bottom: 0; }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: rgba(200, 48, 43, 0.07);
+      padding: 18px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .foot {
+      padding: 36px 0 54px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: #4b3229;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 2px 5px;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .section-head,
+      .grid-2,
+      .grid-3,
+      .grid-4,
+      .blueprint {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        min-height: auto;
+        padding-top: 42px;
+      }
+
+      .finding {
+        grid-template-columns: 1fr;
+      }
+
+      .status {
+        justify-self: start;
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">UX flow redesign audit</div>
+        <h1>Redline becomes a document review workspace.</h1>
+        <p class="lead">The product should no longer feel like a one-off lease checker wrapped in a Mac shell. It should feel like a reusable review system with explicit profiles, cited evidence, and a lease-math profile as the first production-grade lane.</p>
+      </div>
+      <aside class="hero-panel verdict" aria-label="Audit verdict">
+        <span class="verdict-mark"><span class="dot"></span> Significant redesign</span>
+        <p><strong>Why this verdict:</strong> Redline already has a credible native workspace, real loading/error/empty states, source evidence, review notes, export, and provider plumbing. The limiting issue is the product contract: the real engine, CLI, MCP tool, and much of the old UI language made the workflow lease-specific.</p>
+        <div class="meta-grid">
+          <div class="meta"><strong>Audit date</strong> June 12, 2026</div>
+          <div class="meta"><strong>Scope</strong> Mac app, CLI, MCP, docs</div>
+          <div class="meta"><strong>Method</strong> 1 operator pass, source traced</div>
+          <div class="meta"><strong>Outcome</strong> Shell generalized, engine roadmap defined</div>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Executive read</div>
+        <div>
+          <h2>The app was wider than the engine.</h2>
+          <p>Redline's sample library already implied a broader contract-review product, with sample leases, an MSA, and an NDA. The real run path still converted every result into a lease check, while the CLI and MCP entry points exposed only <code>redline check</code> and <code>check_lease</code>. The redesign therefore separates the durable workspace from the active production profile.</p>
+        </div>
+      </div>
+      <div class="wrap grid-3">
+        <article class="card">
+          <h3>Keep</h3>
+          <p>The cited review surface, source sync, deterministic findings, advisory separation, note-taking, export, provider settings, and local-first storage are the product's strongest assets.</p>
+        </article>
+        <article class="card">
+          <h3>Fix now</h3>
+          <p>Stop presenting the Mac app as lease-only. Rename the intake, empty state, run controls, verdict copy, export memo language, and docs around documents, comparison context, approval, and active profiles.</p>
+        </article>
+        <article class="card">
+          <h3>Build next</h3>
+          <p>Add a profile registry so lease math, vendor contracts, NDAs, renewals, invoices, and custom checklists can share one workspace without pretending the current lease extractor handles all of them.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Design DNA</div>
+        <div>
+          <h2>Redline is not a chat app. It is a cited decision desk.</h2>
+          <p>The product should make a reviewer faster and more confident by showing what was checked, what evidence supports it, and what blocks approval. AI can extract and suggest, but the interface should keep deterministic checks visually and conceptually separate from advisory review.</p>
+        </div>
+      </div>
+      <div class="wrap grid-4">
+        <div class="card"><strong>Evidence first</strong><p class="small">Every meaningful finding should link back to source text, clause, or page.</p></div>
+        <div class="card"><strong>Profile explicit</strong><p class="small">A review must say what rule profile ran and what it does not cover.</p></div>
+        <div class="card"><strong>Approval language</strong><p class="small">Use "approval" and "review" rather than lease signing language across generalized flows.</p></div>
+        <div class="card"><strong>Quiet operations</strong><p class="small">Provider, key, export, and storage choices should stay available without dominating document intake.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Current-state map</div>
+        <div>
+          <h2>The workspace is real, but the engine seam is still narrow.</h2>
+          <p>The updated app now opens as a document-review shell with profile-aware execution. The default path runs the broader general-lease profile, while the original lease-math lane remains available for per-display-face validation.</p>
+        </div>
+      </div>
+      <div class="wrap">
+        <svg class="flow" viewBox="0 0 1100 380" role="img" aria-label="Current Redline flow">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#8e1f1c"></path>
+            </marker>
+          </defs>
+          <rect x="24" y="32" width="200" height="86" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="50" y="66" font-size="18" font-weight="800" fill="#191512">Home</text>
+          <text x="50" y="90" font-size="13" fill="#6b6259">Recent reviews, empty state</text>
+
+          <rect x="280" y="32" width="220" height="86" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="306" y="66" font-size="18" font-weight="800" fill="#191512">Check document</text>
+          <text x="306" y="90" font-size="13" fill="#6b6259">PDF, comparison context, focus</text>
+
+          <rect x="560" y="32" width="220" height="86" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="586" y="66" font-size="18" font-weight="800" fill="#191512">Lease profile</text>
+          <text x="586" y="90" font-size="13" fill="#6b6259">Current production extractor/rules</text>
+
+          <rect x="844" y="32" width="220" height="86" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="870" y="66" font-size="18" font-weight="800" fill="#191512">Review workspace</text>
+          <text x="870" y="90" font-size="13" fill="#6b6259">Findings, source, notes, export</text>
+
+          <line x1="224" y1="75" x2="276" y2="75" stroke="#8e1f1c" stroke-width="2.5" marker-end="url(#arrow)"></line>
+          <line x1="500" y1="75" x2="556" y2="75" stroke="#8e1f1c" stroke-width="2.5" marker-end="url(#arrow)"></line>
+          <line x1="780" y1="75" x2="840" y2="75" stroke="#8e1f1c" stroke-width="2.5" marker-end="url(#arrow)"></line>
+
+          <rect x="280" y="188" width="220" height="86" rx="8" fill="#eee1cc" stroke="#c99b63"></rect>
+          <text x="306" y="222" font-size="18" font-weight="800" fill="#191512">CLI</text>
+          <text x="306" y="246" font-size="13" fill="#6b6259">redline check</text>
+
+          <rect x="560" y="188" width="220" height="86" rx="8" fill="#eee1cc" stroke="#c99b63"></rect>
+          <text x="586" y="222" font-size="18" font-weight="800" fill="#191512">MCP</text>
+          <text x="586" y="246" font-size="13" fill="#6b6259">check_lease tool</text>
+
+          <path d="M390 118 C390 150 390 160 390 184" fill="none" stroke="#a86f2a" stroke-width="2.5" marker-end="url(#arrow)"></path>
+          <path d="M670 118 C670 150 670 160 670 184" fill="none" stroke="#a86f2a" stroke-width="2.5" marker-end="url(#arrow)"></path>
+
+          <text x="280" y="324" font-size="15" font-weight="800" fill="#8e1f1c">Primary remaining gap:</text>
+          <text x="456" y="324" font-size="15" fill="#6b6259">profiles now exist, but there is no first-class registry or non-lease deterministic profile yet.</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Findings index</div>
+        <div>
+          <h2>Issues found and how they were addressed.</h2>
+          <p>Severity is based on whether the issue blocks generalized product use, creates misleading expectations, or damages trust during a review.</p>
+        </div>
+      </div>
+      <div class="wrap">
+        <div class="finding">
+          <div class="severity high">High</div>
+          <div>
+            <div class="finding-title">Every real run was presented as a lease check.</div>
+            <p>The report adapter collapsed engine output into lease metadata, even though the sample library already demonstrated MSA and NDA review surfaces. This made generalized use feel fake once the user left samples.</p>
+          </div>
+          <div class="status"><strong>Fixed now</strong> Real runs now use profile-aware review metadata inside a document-review shell.</div>
+        </div>
+        <div class="finding">
+          <div class="severity high">High</div>
+          <div>
+            <div class="finding-title">CLI and MCP remain lease-only execution surfaces.</div>
+            <p>The command parser and MCP server still expose the production lease workflow. This should not be hidden behind generic language.</p>
+          </div>
+          <div class="status"><strong>Roadmap</strong> Requires profile registry, schemas, and CLI/MCP API redesign.</div>
+        </div>
+        <div class="finding">
+          <div class="severity medium">Medium</div>
+          <div>
+            <div class="finding-title">Front-door copy narrowed the audience too early.</div>
+            <p>"Check a lease", "Drop a lease PDF", "Deal context", and signing-oriented verdicts told the user the app only belonged to one personal workflow.</p>
+          </div>
+          <div class="status"><strong>Fixed now</strong> Intake, empty state, toolbar, preflight, and verdict language generalized.</div>
+        </div>
+        <div class="finding">
+          <div class="severity medium">Medium</div>
+          <div>
+            <div class="finding-title">Exports encoded lease semantics.</div>
+            <p>Memos used "Lease review", "matches the lease", and "lease shows", which made generalized reports look inaccurate outside a lease.</p>
+          </div>
+          <div class="status"><strong>Fixed now</strong> Export uses document kind and document evidence wording.</div>
+        </div>
+        <div class="finding">
+          <div class="severity low">Low</div>
+          <div>
+            <div class="finding-title">Long-running and huge-document expectations are underexplained.</div>
+            <p>The app has loading, cancellation, and stale-import cleanup, but does not yet set expectations for page count, extraction limits, or slow remote providers.</p>
+          </div>
+          <div class="status"><strong>Later</strong> Add preflight estimates after profile registry exists.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Day in the life</div>
+        <div>
+          <h2>The target user is a reviewer, not a lease specialist.</h2>
+          <p>A user should be able to drag in any reviewable PDF, pick or infer a review profile, add expected terms or notes, run a cited check, resolve blockers, and export a memo. Lease math is one lane. The workspace is the durable product.</p>
+        </div>
+      </div>
+      <div class="wrap table" role="table" aria-label="Day in the life flow">
+        <table class="table">
+          <thead>
+            <tr><th>Moment</th><th>User intent</th><th>Design response</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Starts review</td><td>Bring in a PDF quickly.</td><td>Document-first intake with PDF drop, comparison context, and focused optional controls.</td><td>Implemented</td></tr>
+            <tr><td>Chooses what to check</td><td>Know which rule set is running.</td><td>Current app uses production lease profile; future app needs profile picker and auto-suggest.</td><td>Partial</td></tr>
+            <tr><td>Reads verdict</td><td>Decide whether approval is blocked.</td><td>Verdict now uses approval/review language, not lease-signing language.</td><td>Implemented</td></tr>
+            <tr><td>Verifies evidence</td><td>Trace each issue to source.</td><td>Existing source pane and finding evidence model remain the centerpiece.</td><td>Implemented</td></tr>
+            <tr><td>Shares result</td><td>Export a clear memo.</td><td>Export now uses document terminology and the review kind.</td><td>Implemented</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">One idea</div>
+        <div>
+          <h2>Make profiles the product boundary.</h2>
+          <p>The next architecture move should be a first-class review profile abstraction. A profile owns the extractor schema, comparison-sheet schema, deterministic rules, advisory prompt, empty-state examples, and export vocabulary. The workspace owns intake, source evidence, notes, review state, provider settings, and export mechanics.</p>
+        </div>
+      </div>
+      <div class="wrap callout">
+        <p><strong>Design principle:</strong> Every screen may say "document", but every result must say exactly which profile checked it. Generic language should widen the door, not obscure the limits of the active rule engine.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Reframed navigation</div>
+        <div>
+          <h2>Use a general workspace with profile-aware metadata.</h2>
+          <p>The main navigation should organize by review work, not by lease workflow. The current native structure is close; the remaining UX move is to expose the active profile as metadata on the document and run sheet rather than making the whole app lease branded.</p>
+        </div>
+      </div>
+      <div class="wrap blueprint">
+        <aside class="nav-list">
+          <div class="nav-item active"><strong>Library</strong><p class="small">All reviews, recent activity, sample documents.</p></div>
+          <div class="nav-item"><strong>Review</strong><p class="small">Findings, source, notes, export.</p></div>
+          <div class="nav-item"><strong>Profiles</strong><p class="small">Lease math now; contracts and custom checklists later.</p></div>
+          <div class="nav-item"><strong>Settings</strong><p class="small">Provider, theme, layout, privacy.</p></div>
+        </aside>
+        <div class="wire">
+          <div class="wire-header">
+            <div><strong>Q3 Renewal Agreement.pdf</strong><p class="small">General lease review · Compared with term sheet</p></div>
+            <span class="pill">Needs review</span>
+          </div>
+          <div class="wire-row"><span>Rent display-face mismatch</span><span class="pill">Problem</span></div>
+          <div class="wire-row"><span>Renewal option extracted</span><span class="pill">Passed</span></div>
+          <div class="wire-row"><span>Advisory note: ambiguous cap language</span><span class="pill">AI note</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Proposed future flow</div>
+        <div>
+          <h2>Generalized execution requires a registry.</h2>
+          <p>The vNext flow adds profile selection and profile-specific schemas while preserving the current source-grounded workspace.</p>
+        </div>
+      </div>
+      <div class="wrap">
+        <svg class="flow" viewBox="0 0 1100 420" role="img" aria-label="Proposed generalized Redline flow">
+          <defs>
+            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L9,3 z" fill="#4f765f"></path>
+            </marker>
+          </defs>
+          <rect x="34" y="46" width="190" height="82" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="58" y="78" font-size="17" font-weight="800" fill="#191512">Document intake</text>
+          <text x="58" y="102" font-size="13" fill="#6b6259">PDF, notes, expected terms</text>
+
+          <rect x="282" y="46" width="200" height="82" rx="8" fill="#dce9ee" stroke="#9fbeca"></rect>
+          <text x="306" y="78" font-size="17" font-weight="800" fill="#191512">Profile selection</text>
+          <text x="306" y="102" font-size="13" fill="#6b6259">Lease, MSA, NDA, custom</text>
+
+          <rect x="546" y="46" width="220" height="82" rx="8" fill="#dce8df" stroke="#a8c1ad"></rect>
+          <text x="570" y="78" font-size="17" font-weight="800" fill="#191512">Profile engine</text>
+          <text x="570" y="102" font-size="13" fill="#6b6259">Schema, rules, prompt, terms</text>
+
+          <rect x="830" y="46" width="220" height="82" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="854" y="78" font-size="17" font-weight="800" fill="#191512">Evidence workspace</text>
+          <text x="854" y="102" font-size="13" fill="#6b6259">Findings, notes, export</text>
+
+          <line x1="224" y1="87" x2="278" y2="87" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></line>
+          <line x1="482" y1="87" x2="542" y2="87" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></line>
+          <line x1="766" y1="87" x2="826" y2="87" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></line>
+
+          <rect x="282" y="212" width="200" height="82" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="306" y="244" font-size="17" font-weight="800" fill="#191512">CLI</text>
+          <text x="306" y="268" font-size="13" fill="#6b6259">check-document --profile</text>
+
+          <rect x="546" y="212" width="220" height="82" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="570" y="244" font-size="17" font-weight="800" fill="#191512">MCP</text>
+          <text x="570" y="268" font-size="13" fill="#6b6259">check_document(profile, pdf)</text>
+
+          <rect x="830" y="212" width="220" height="82" rx="8" fill="#fffaf3" stroke="#d9cfc1"></rect>
+          <text x="854" y="244" font-size="17" font-weight="800" fill="#191512">Exports</text>
+          <text x="854" y="268" font-size="13" fill="#6b6259">Profile-specific memo terms</text>
+
+          <path d="M382 128 C382 164 382 176 382 208" fill="none" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></path>
+          <path d="M656 128 C656 164 656 176 656 208" fill="none" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></path>
+          <path d="M940 128 C940 164 940 176 940 208" fill="none" stroke="#4f765f" stroke-width="2.5" marker-end="url(#arrow2)"></path>
+
+          <text x="34" y="352" font-size="15" font-weight="800" fill="#4f765f">Preserve:</text>
+          <text x="112" y="352" font-size="15" fill="#6b6259">current lease profile, source pane, review notes, cancellation, exports, provider settings, and local library.</text>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Feature preservation</div>
+        <div>
+          <h2>The redesign keeps the existing useful machinery.</h2>
+          <p>This is not a throwaway rewrite. The existing workspace has enough real product gravity to preserve and re-label around a cleaner contract.</p>
+        </div>
+      </div>
+      <div class="wrap grid-3">
+        <article class="card">
+          <h3>Preserved app states</h3>
+          <div class="tag-row">
+            <span class="tag fixed">Empty library</span>
+            <span class="tag fixed">Loading and cancel</span>
+            <span class="tag fixed">Engine error</span>
+            <span class="tag fixed">Missing source</span>
+            <span class="tag fixed">Export failure</span>
+          </div>
+        </article>
+        <article class="card">
+          <h3>Preserved review tools</h3>
+          <div class="tag-row">
+            <span class="tag fixed">Evidence links</span>
+            <span class="tag fixed">Source pane</span>
+            <span class="tag fixed">Finding notes</span>
+            <span class="tag fixed">Passed checks</span>
+            <span class="tag fixed">Advisory bucket</span>
+          </div>
+        </article>
+        <article class="card">
+          <h3>Preserved operations</h3>
+          <div class="tag-row">
+            <span class="tag fixed">Provider settings</span>
+            <span class="tag fixed">Runtime API key</span>
+            <span class="tag fixed">Local storage</span>
+            <span class="tag fixed">PDF replacement</span>
+            <span class="tag fixed">Markdown export</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Safety net</div>
+        <div>
+          <h2>Edge cases checked in the redesign pass.</h2>
+          <p>The generalized copy pass should not regress resilience. The current app already handles many operational states; future non-lease profiles need additional limits and recoverability messaging.</p>
+        </div>
+      </div>
+      <div class="wrap table">
+        <table class="table">
+          <thead>
+            <tr><th>Case</th><th>Current handling</th><th>Needed next</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>First run / empty library</td><td>Dashboard routes to document intake and samples.</td><td>Profile-aware sample grouping.</td></tr>
+            <tr><td>Invalid file</td><td>Preflight blocks missing and non-PDF inputs.</td><td>Profile-specific accepted inputs once non-PDF profiles exist.</td></tr>
+            <tr><td>Engine failure</td><td>Error overlay supports retry, dismiss, and copy details.</td><td>Provider-specific slow/offline guidance.</td></tr>
+            <tr><td>Cancellation</td><td>Active run token and cleanup protect against stale imports.</td><td>Show cancel reason in run history if persisted later.</td></tr>
+            <tr><td>Missing source PDF</td><td>Workspace shows source fallback and replacement action.</td><td>Keep behavior unchanged.</td></tr>
+            <tr><td>Huge document</td><td>No explicit page/token estimate yet.</td><td>Add preflight page count and profile limits.</td></tr>
+            <tr><td>Unsupported document type</td><td>Currently implicit because deterministic profiles are lease-focused.</td><td>Profile mismatch warning and "review as generic advisory" fallback.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">What changed in v2</div>
+        <div>
+          <h2>The implemented pass widens the shell without lying about the engine.</h2>
+          <p>The branch now presents the native app as document review, not lease-only intake. It keeps the real active profile named in result metadata and documentation.</p>
+        </div>
+      </div>
+      <div class="wrap grid-2">
+        <article class="card">
+          <h3>Generalized now</h3>
+          <p>Home, empty state, toolbar help, run sheet, drop copy, comparison context, focus placeholder, preflight messages, source fallback, verdict copy, report wording, export memo wording, and privacy docs.</p>
+        </article>
+        <article class="card">
+          <h3>Still intentionally specific</h3>
+          <p>The production extractor, rules, CLI command, and MCP tool are still commercial lease validation. They should stay explicit until a profile registry ships.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap section-head">
+        <div class="section-kicker">Roadmap</div>
+        <div>
+          <h2>Generalization should land in three steps.</h2>
+          <p>Do not jump straight to "any document" marketing. Ship generalized structure while adding profiles that earn their names.</p>
+        </div>
+      </div>
+      <div class="wrap table">
+        <table class="table">
+          <thead>
+            <tr><th>Step</th><th>Scope</th><th>Acceptance bar</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1. Shell generalization</td><td>Document-first Mac copy, export language, docs truth, profile metadata.</td><td>Done in this pass.</td></tr>
+            <tr><td>2. Profile registry</td><td>Shared profile protocol for extractor schema, rules, comparison schema, prompts, labels, examples.</td><td>CLI and MCP can run <code>--profile lease-math</code> with no behavior loss.</td></tr>
+            <tr><td>3. Second real profile</td><td>Pick one non-lease workflow, likely NDA or vendor MSA because sample surfaces already exist.</td><td>Has fixtures, deterministic checks, cited output, Mac samples, CLI/MCP tests, and docs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      Source-traced against the Redline checkout on June 12, 2026. This artifact is intentionally self-contained so it can be opened directly from <code>docs/Redline-UX-Flow-and-Redesign.html</code>.
+    </div>
+  </footer>
+</body>
+</html>

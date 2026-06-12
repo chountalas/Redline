@@ -34,7 +34,7 @@ struct DocumentActionsMenu: View {
 
     private func replaceSourcePDF() {
         let panel = RunSheetFileIntake.makeOpenPanel(allowedContentTypes: [.pdf])
-        panel.message = "Choose the replacement lease PDF"
+        panel.message = "Choose the replacement source PDF"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             try ws.replaceSourcePDF(for: doc.id, with: url)

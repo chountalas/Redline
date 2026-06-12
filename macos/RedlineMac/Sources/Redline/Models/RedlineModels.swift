@@ -18,6 +18,27 @@ enum FailOn: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
+enum ReviewProfile: String, CaseIterable, Identifiable, Codable, Sendable {
+    case leaseGeneral = "lease-general"
+    case leaseMath = "lease-math"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .leaseGeneral: "General lease"
+        case .leaseMath: "Lease math"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .leaseGeneral: "Financial, date, clause coverage, and advisory context checks"
+        case .leaseMath: "Narrow rent, term, date, and comparison-term checks"
+        }
+    }
+}
+
 enum LLMProvider: String, CaseIterable, Identifiable, Codable, Sendable {
     case codex
     case openai
@@ -88,7 +109,15 @@ struct DealTermJSON: Decodable {
     let source: String
 }
 
+struct ProfileJSON: Decodable {
+    let id: String
+    let name: String
+    let version: String?
+    let description: String?
+}
+
 struct CheckReport: Decodable {
+    let profile: ProfileJSON?
     let factsSummary: FactsSummary?
     let deterministicFindings: [Finding]
     let advisoryFindings: [Finding]
@@ -98,6 +127,7 @@ struct CheckReport: Decodable {
     let exitCode: Int
 
     enum CodingKeys: String, CodingKey {
+        case profile
         case factsSummary = "facts_summary"
         case deterministicFindings = "deterministic_findings"
         case advisoryFindings = "advisory_findings"
@@ -118,6 +148,10 @@ struct FactsSummary: Decodable {
     let perFaceRent: String?
     let numDisplayFaces: Int?
     let baseTermYears: String?
+    let securityDeposit: String?
+    let defaultCurePeriodDays: Int?
+    let renewalNoticeDeadlineDays: Int?
+    let permittedUse: String?
 
     enum CodingKeys: String, CodingKey {
         case sourceFile = "source_file"
@@ -127,6 +161,10 @@ struct FactsSummary: Decodable {
         case perFaceRent = "per_face_rent"
         case numDisplayFaces = "num_display_faces"
         case baseTermYears = "base_term_years"
+        case securityDeposit = "security_deposit"
+        case defaultCurePeriodDays = "default_cure_period_days"
+        case renewalNoticeDeadlineDays = "renewal_notice_deadline_days"
+        case permittedUse = "permitted_use"
     }
 }
 

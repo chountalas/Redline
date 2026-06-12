@@ -190,7 +190,7 @@ struct ReportPaneView: View {
         HStack(spacing: 8) {
             RLIcon("spark", size: 14)
             Text("AI suggestions").font(rl.ui(12, .semibold)).tracking(0.5).textCase(.uppercase)
-            Text("· won't block signing").font(rl.ui(12)).foregroundStyle(rl.ink3)
+            Text("· won't block approval").font(rl.ui(12)).foregroundStyle(rl.ink3)
         }
         .foregroundStyle(rl.ai)
         .padding(.horizontal, 26).padding(.top, 22).padding(.bottom, 6)
@@ -254,14 +254,14 @@ struct ReportPaneView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: deal terms
+    // MARK: comparison terms
 
     private var dealTermsPanel: some View {
         let verified = doc.dealTerms.filter { $0.verified }.count
         return VStack(spacing: 0) {
             HStack(spacing: 9) {
                 RLIcon("tablecells", size: 13).foregroundStyle(rl.ink3)
-                Text("Deal terms — \(verified) of \(doc.dealTerms.count) verified")
+                Text("Comparison terms — \(verified) of \(doc.dealTerms.count) verified")
                     .font(rl.ui(12, .semibold)).tracking(0.5).textCase(.uppercase)
                     .foregroundStyle(rl.ink3)
                 Spacer()
@@ -277,12 +277,12 @@ struct ReportPaneView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(term.label).font(rl.ui(13.5, .semibold)).foregroundStyle(rl.ink)
                             Text(term.verified
-                                 ? "Matches the lease — \(term.expected)"
-                                 : "Mismatch — expected \(term.expected)\(term.actual.map { ", lease shows \($0)" } ?? "")")
+                                 ? "Matches the document — \(term.expected)"
+                                 : "Mismatch — expected \(term.expected)\(term.actual.map { ", document shows \($0)" } ?? "")")
                                 .font(rl.ui(12)).foregroundStyle(rl.ink2)
                         }
                         Spacer(minLength: 10)
-                        Text(term.source == "thread" ? "from thread" : "from deal sheet")
+                        Text(term.source == "thread" ? "from context" : "from comparison sheet")
                             .font(rl.mono(10)).foregroundStyle(rl.ink3)
                             .padding(.horizontal, 8).padding(.vertical, 2)
                             .background(rl.surface2, in: Capsule())

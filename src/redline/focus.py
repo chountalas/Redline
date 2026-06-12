@@ -10,9 +10,10 @@ from redline.llm import LLMConfig, complete_structured, strict_object_schema
 from redline.models import Finding, LeaseFacts, Severity
 from redline.pdf_text import PDFText
 
-SYSTEM_PROMPT = """You provide advisory commercial lease review findings for a narrow user focus.
+SYSTEM_PROMPT = """You provide advisory commercial contract review findings for context.
 Return only structured JSON matching the requested schema. Findings must be tagged ADVISORY and
-must include source quote/page where possible. Do not override deterministic findings."""
+must include source quote/page where possible. Compare the document against the context, but do
+not override deterministic findings."""
 
 FOCUS_SCHEMA_NAME = "advisory_findings"
 
@@ -79,14 +80,16 @@ def _focus_schema() -> dict[str, Any]:
 def _build_focus_prompt(facts: LeaseFacts, pdf_text: PDFText, context: str) -> str:
     facts_json = json.dumps(facts.model_dump(mode="json"), indent=2)
     return f"""
-Focus:
+Review context:
 {context}
 
-Extracted facts:
+Extracted facts from the active deterministic profile:
 {facts_json}
 
-Return zero or more advisory findings.
+Return zero or more advisory findings. Prioritize mismatches with the review context,
+unusual obligations, missing clauses the context asked for, risky terms, ambiguous drafting,
+and points a human reviewer should verify before approval.
 
-Lease text:
+Document text:
 {pdf_text.as_prompt_text()}
 """.strip()

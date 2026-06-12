@@ -1,6 +1,6 @@
 # Model Providers
 
-Redline is model-agnostic at the extraction boundary. The model turns lease text into structured facts; deterministic Redline rules produce the verdicts.
+Redline is model-agnostic at the extraction boundary. The model turns document text into structured facts for the active review profile; deterministic Redline rules produce the verdicts. The current production profiles extract commercial lease facts.
 
 ## Default: Codex Subscription
 

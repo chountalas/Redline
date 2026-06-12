@@ -20,14 +20,15 @@ DEAL_FIELDS = (
 )
 
 SYSTEM_PROMPT = (
-    "You distill a commercial-lease negotiation thread into two parts. "
-    "1) deal_sheet: the negotiated NUMERIC terms (total_rent, per_face_rent, "
+    "You distill review context into two parts for Redline's lease profiles. "
+    "1) deal_sheet: negotiated NUMERIC lease terms (total_rent, per_face_rent, "
     "num_display_faces, base_term_years, renewal_options, escalation_pct). Omit any "
-    "field not explicitly negotiated. These are checked deterministically against the "
-    "lease — do not guess. "
-    "2) watch_items: QUALITATIVE commitments (e.g. exclusivity, signage rights, "
-    "maintenance) as advisory findings, each quoting the thread. Watch items are "
-    "ADVISORY only and must never be treated as deterministic; do not put numbers here."
+    "field not explicitly stated. These are checked deterministically against the "
+    "document when the active profile supports them — do not guess. "
+    "2) watch_items: QUALITATIVE contract commitments, approval constraints, and reviewer "
+    "concerns as advisory findings, each quoting the supplied context where possible. "
+    "Watch items are ADVISORY only and must never be treated as deterministic; do not put "
+    "numeric deal terms here."
 )
 
 
@@ -74,7 +75,7 @@ def run_thread_distill(
     raw = complete_structured(
         config=config,
         system=SYSTEM_PROMPT,
-        prompt=f"Negotiation thread:\n\n{thread_text}",
+        prompt=f"Review context:\n\n{thread_text}",
         schema_name=THREAD_SCHEMA_NAME,
         schema=_thread_schema(),
         max_output_tokens=3000,
@@ -84,7 +85,7 @@ def run_thread_distill(
     try:
         deal = DealSheet.model_validate(deal_raw)
     except ValidationError as exc:
-        raise ExtractionError(f"Invalid distilled deal sheet: {exc}") from exc
+        raise ExtractionError(f"Invalid distilled comparison sheet: {exc}") from exc
 
     items = raw.get("watch_items", [])
     if not isinstance(items, list):

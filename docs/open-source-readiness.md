@@ -18,7 +18,7 @@ Run the Swift commands from `macos/RedlineMac`. Run the Python and safety comman
 
 ## Manual Review
 
-- No real leases, exported reports, or screenshots with confidential terms are staged.
+- No real documents, review context, exported reports, or screenshots with confidential terms are staged.
 - No API keys, access tokens, `.env` files, or provider credentials are staged.
 - No private workflow notes, inbox references, customer names, or local-only paths are staged.
 - README install instructions match the actual release state.

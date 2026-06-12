@@ -13,7 +13,7 @@ enum ExportWriter {
     static func renderMemo(doc: ReviewDoc, reviewer: String? = nil, dateStamp: String? = nil) -> String {
         var out: [String] = []
         let v = plainVerdict(doc)
-        out.append("# Lease review — \(doc.name)")
+        out.append("# \(doc.kind) review — \(doc.name)")
         out.append("")
         out.append("**\(v.head)**")
         out.append(v.sub)
@@ -45,12 +45,12 @@ enum ExportWriter {
 
         if !doc.dealTerms.isEmpty {
             let verified = doc.dealTerms.filter { $0.verified }.count
-            out.append("## Deal terms — \(verified) of \(doc.dealTerms.count) verified")
+            out.append("## Comparison terms — \(verified) of \(doc.dealTerms.count) verified")
             for t in doc.dealTerms {
                 if t.verified {
-                    out.append("- [x] \(t.label): \(t.expected) — matches the lease (from \(t.source))")
+                    out.append("- [x] \(t.label): \(t.expected) — matches the document (from \(t.source))")
                 } else {
-                    out.append("- [ ] \(t.label): expected \(t.expected)\(t.actual.map { ", lease shows \($0)" } ?? "") (from \(t.source))")
+                    out.append("- [ ] \(t.label): expected \(t.expected)\(t.actual.map { ", document shows \($0)" } ?? "") (from \(t.source))")
                 }
             }
             out.append("")

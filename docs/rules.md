@@ -54,4 +54,41 @@ Checks extracted facts against optional negotiated deal terms.
 - Failure severity: `ERROR`
 - Missing-input severity: `COULD_NOT_VERIFY`
 
-The rule is skipped when no deal sheet is provided.
+The rule is skipped when no comparison sheet is provided.
+
+## R7_general_lease_clause_coverage
+
+Checks whether the `lease-general` profile extracted core review clauses.
+
+- Inputs: `permitted_use`, `assignment_sublease_consent`, `maintenance_responsibility`, `insurance_requirements`, `default_cure_period_days`, `notice_addresses`, `additional_rent_terms`
+- Missing-input severity: `COULD_NOT_VERIFY`
+
+This rule does not decide whether a clause is acceptable. It tells the reviewer when a core term was not visible enough to check.
+
+## R8_renewal_notice_window
+
+Checks whether extracted renewal options include an extracted advance-notice deadline.
+
+- Inputs: `renewal_options`, `renewal_notice_deadline_days`
+- Failure severity: `WARN`
+
+## R9_additional_rent_audit_visibility
+
+Flags additional rent, CAM, tax, or operating-expense language when Redline did not extract tenant audit, cap, reconciliation, or review rights.
+
+- Inputs: `additional_rent_terms`, `cam_audit_rights`
+- Failure severity: `WARN`
+
+## R10_assignment_consent_standard
+
+Flags assignment/sublease language that appears to let the landlord withhold consent broadly.
+
+- Inputs: `assignment_sublease_consent`
+- Failure severity: `WARN`
+
+## R11_termination_rights_asymmetry
+
+Flags termination language when extracted text appears to mention landlord-side termination rights without matching tenant-side rights.
+
+- Inputs: `termination_rights`
+- Failure severity: `WARN`

@@ -25,6 +25,7 @@ enum RLSym {
         case "doc": "doc"
         case "tablecells": "tablecells"
         case "tray": "tray.and.arrow.down"
+        case "clip": "doc.on.clipboard"
         case "cog": "gearshape"
         case "folder": "rectangle.stack"
         case "gear": "slider.horizontal.3"

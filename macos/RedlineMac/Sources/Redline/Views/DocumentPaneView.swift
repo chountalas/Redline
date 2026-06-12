@@ -208,7 +208,7 @@ struct DocumentPaneView: View {
             Text("No cited clauses")
                 .font(rl.serif(20, .medium))
                 .foregroundStyle(rl.ink)
-            Text("Open the source PDF to review the full lease.")
+                Text("Open the source PDF to review the full document.")
                 .font(rl.ui(13))
                 .foregroundStyle(rl.ink3)
             if let source = doc.source?.leasePDF {

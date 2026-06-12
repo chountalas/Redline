@@ -71,6 +71,36 @@ final class CodableTests: XCTestCase {
         XCTAssertEqual(restored.apiKey, "")
     }
 
+    func testRunSourceDecodesLegacySnapshotMissingReviewContextState() throws {
+        let src = RunSource(
+            leasePDF: URL(fileURLWithPath: "/tmp/x.pdf"), dealSheet: nil, context: "",
+            failOn: .error, provider: .codex, model: "m", baseURL: "u",
+            apiKey: "sk-SECRET", thread: "saved context")
+        let data = try JSONEncoder().encode(src)
+        var obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        obj.removeValue(forKey: "reviewContextState")
+        let legacy = try JSONSerialization.data(withJSONObject: obj)
+        let restored = try JSONDecoder().decode(RunSource.self, from: legacy)
+
+        XCTAssertEqual(restored.reviewContextState, .saved)
+        XCTAssertEqual(restored.apiKey, "")
+    }
+
+    func testRunSourceDecodesLegacySnapshotMissingProfile() throws {
+        let src = RunSource(
+            leasePDF: URL(fileURLWithPath: "/tmp/x.pdf"), dealSheet: nil, context: "",
+            profile: .leaseMath, failOn: .error, provider: .codex, model: "m", baseURL: "u",
+            apiKey: "sk-SECRET", thread: "")
+        let data = try JSONEncoder().encode(src)
+        var obj = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        obj.removeValue(forKey: "profile")
+        let legacy = try JSONSerialization.data(withJSONObject: obj)
+        let restored = try JSONDecoder().decode(RunSource.self, from: legacy)
+
+        XCTAssertEqual(restored.profile, .leaseGeneral)
+        XCTAssertEqual(restored.apiKey, "")
+    }
+
     func testRunSourceDecodesLegacySnapshotMissingOriginalLeaseFilename() throws {
         var src = RunSource(
             leasePDF: URL(fileURLWithPath: "/tmp/x.pdf"), dealSheet: nil, context: "",
