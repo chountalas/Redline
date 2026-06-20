@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 - 2026-06-19
 
 - Add `lease-general` as the default profile while keeping `lease-math` for the narrow billboard/per-display-face lane.
 - Add deterministic general lease coverage for permitted use, assignment/sublease, maintenance, insurance, cure periods, notices, additional rent/CAM, renewal notice windows, and termination asymmetry.
