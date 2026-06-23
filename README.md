@@ -25,9 +25,9 @@ Install everything with Homebrew:
 brew install --cask chountalas/tap/redline-app
 ```
 
-That installs `Redline.app` into `/Applications` and installs the CLI formula as a dependency, so the app, `redline`, and `redline-mcp` all use the same validator engine. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
+That installs `Redline.app` into `/Applications`, installs the Homebrew `python@3.13` runtime dependency, and links `redline` and `redline-mcp` from the engine bundled inside the app. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
 
-CLI and MCP tools only:
+The historical CLI-only formula remains available for terminal-only installs, but it is not needed when you install the app cask:
 
 ```bash
 brew install chountalas/tap/redline
@@ -43,7 +43,6 @@ redline --help
 Upgrade later:
 
 ```bash
-brew upgrade chountalas/tap/redline
 brew upgrade --cask chountalas/tap/redline-app
 ```
 
@@ -131,7 +130,7 @@ redline check lease.pdf --context-file review-context.md
 
 ## Mac App
 
-Redline includes a SwiftUI macOS wrapper. It uses the same Python validator engine as the CLI.
+Redline includes a SwiftUI macOS wrapper. The release app bundles the same Python validator engine used by the CLI.
 
 ```bash
 brew install --cask chountalas/tap/redline-app

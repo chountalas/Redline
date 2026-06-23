@@ -12,6 +12,8 @@ APP_PATH="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_PATH/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
+ENGINE_DIR="$APP_RESOURCES/Engine"
+ENGINE_BIN="$ENGINE_DIR/bin"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ICON_SRC="$PACKAGE_DIR/AppIcon.icns"
@@ -19,6 +21,9 @@ VERSION="${VERSION:-$(awk -F '"' '/^version =/{print $2; exit}' "$ROOT_DIR/pypro
 ZIP_PATH="$DIST_DIR/$APP_NAME-$VERSION-arm64.zip"
 DMG_PATH="$DIST_DIR/$APP_NAME-$VERSION-arm64.dmg"
 SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
+ENGINE_PYTHON="${ENGINE_PYTHON:-python3.13}"
+RUNTIME_PYTHON="${RUNTIME_PYTHON:-/opt/homebrew/opt/python@3.13/bin/python3.13}"
+UV="${UV:-uv}"
 
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   TIMESTAMP_FLAG="--timestamp=none"
@@ -50,6 +55,80 @@ fi
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 cp "$ICON_SRC" "$APP_RESOURCES/AppIcon.icns"
+
+"$ENGINE_PYTHON" -m venv --copies "$ENGINE_DIR"
+VIRTUAL_ENV="$ENGINE_DIR" "$UV" sync --active --frozen --extra mcp --no-dev --no-editable --link-mode copy
+rm -rf "$ENGINE_BIN"
+rm -f "$ENGINE_DIR/pyvenv.cfg" "$ENGINE_DIR/.lock" "$ENGINE_DIR/.gitignore"
+find "$ENGINE_DIR" -name "direct_url.json" -delete
+mkdir -p "$ENGINE_BIN"
+
+cat >"$ENGINE_BIN/redline" <<'SH'
+#!/bin/sh
+set -e
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+  DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")" && pwd)"
+  TARGET="$(readlink "$SOURCE")"
+  case "$TARGET" in
+    /*) SOURCE="$TARGET" ;;
+    *) SOURCE="$DIR/$TARGET" ;;
+  esac
+done
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")" && pwd)"
+ENGINE_DIR="$(dirname "$SCRIPT_DIR")"
+PYTHON="${REDLINE_ENGINE_PYTHON:-/opt/homebrew/opt/python@3.13/bin/python3.13}"
+if [ ! -x "$PYTHON" ]; then
+  echo "Redline requires Homebrew python@3.13. Install with: brew install python@3.13" >&2
+  exit 127
+fi
+export PYTHONPATH="$ENGINE_DIR/lib/python3.13/site-packages${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONSAFEPATH=1
+exec "$PYTHON" -P -m redline.cli "$@"
+SH
+
+cat >"$ENGINE_BIN/redline-mcp" <<'SH'
+#!/bin/sh
+set -e
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+  DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")" && pwd)"
+  TARGET="$(readlink "$SOURCE")"
+  case "$TARGET" in
+    /*) SOURCE="$TARGET" ;;
+    *) SOURCE="$DIR/$TARGET" ;;
+  esac
+done
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$SOURCE")" && pwd)"
+ENGINE_DIR="$(dirname "$SCRIPT_DIR")"
+PYTHON="${REDLINE_ENGINE_PYTHON:-/opt/homebrew/opt/python@3.13/bin/python3.13}"
+if [ ! -x "$PYTHON" ]; then
+  echo "Redline requires Homebrew python@3.13. Install with: brew install python@3.13" >&2
+  exit 127
+fi
+export PYTHONPATH="$ENGINE_DIR/lib/python3.13/site-packages${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONSAFEPATH=1
+exec "$PYTHON" -P -m redline.mcp_server "$@"
+SH
+
+chmod +x "$ENGINE_BIN/redline" "$ENGINE_BIN/redline-mcp"
+find "$ENGINE_DIR" -type d -name "__pycache__" -exec rm -rf {} +
+find "$ENGINE_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+if [[ ! -x "$RUNTIME_PYTHON" ]]; then
+  echo "Expected runtime Python not found: $RUNTIME_PYTHON" >&2
+  exit 1
+fi
+"$ENGINE_BIN/redline" --version >/dev/null
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$ENGINE_DIR/lib/python3.13/site-packages" "$RUNTIME_PYTHON" - <<'PY'
+import mcp.server.fastmcp
+import redline.mcp_server
+PY
+find "$ENGINE_DIR" -type d -name "__pycache__" -exec rm -rf {} +
+find "$ENGINE_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
 
 cat >"$INFO_PLIST" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

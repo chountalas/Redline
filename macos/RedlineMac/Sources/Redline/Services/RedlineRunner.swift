@@ -32,6 +32,12 @@ private struct EngineErrorEnvelope: Decodable {
 
 struct RedlineRunner {
     let repoRoot: URL
+    let bundledEngineRoot: URL?
+
+    init(repoRoot: URL, bundledEngineRoot: URL? = RedlineRunner.defaultBundledEngineRoot()) {
+        self.repoRoot = repoRoot
+        self.bundledEngineRoot = bundledEngineRoot
+    }
 
     static func defaultRepoRoot() -> URL {
         if let envRoot = ProcessInfo.processInfo.environment["REDLINE_REPO_ROOT"], !envRoot.isEmpty {
@@ -48,14 +54,38 @@ struct RedlineRunner {
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     }
 
+    static func defaultBundledEngineRoot() -> URL? {
+        let engineRoot = Bundle.main.bundleURL
+            .appendingPathComponent("Contents")
+            .appendingPathComponent("Resources")
+            .appendingPathComponent("Engine")
+        let redline = engineRoot
+            .appendingPathComponent("bin")
+            .appendingPathComponent("redline")
+        guard FileManager.default.isExecutableFile(atPath: redline.path) else { return nil }
+        return engineRoot
+    }
+
     var sourceCheckoutRoot: URL? {
         let pyprojectURL = repoRoot.appendingPathComponent("pyproject.toml")
         guard FileManager.default.fileExists(atPath: pyprojectURL.path) else { return nil }
         return repoRoot
     }
 
+    var bundledRedlineExecutable: URL? {
+        guard let bundledEngineRoot else { return nil }
+        let redline = bundledEngineRoot
+            .appendingPathComponent("bin")
+            .appendingPathComponent("redline")
+        guard FileManager.default.isExecutableFile(atPath: redline.path) else { return nil }
+        return redline
+    }
+
     func commandPrefix() -> [String] {
-        sourceCheckoutRoot == nil ? ["redline", "check"] : ["uv", "run", "redline", "check"]
+        if let bundledRedlineExecutable {
+            return [bundledRedlineExecutable.path, "check"]
+        }
+        return sourceCheckoutRoot == nil ? ["redline", "check"] : ["uv", "run", "redline", "check"]
     }
 
     func workingDirectoryURL() -> URL {
@@ -140,9 +170,12 @@ struct RedlineRunner {
             // Prepend the standard tool dirs so `env uv` — and uv→codex — resolve no matter how
             // the app was launched. Existing PATH entries are kept, at lower priority.
             let home = NSHomeDirectory()
-            let toolDirs = [
+            var toolDirs = [
                 "\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.cargo/bin",
             ]
+            if let bundledEngineRoot {
+                toolDirs.insert(bundledEngineRoot.appendingPathComponent("bin").path, at: 0)
+            }
             let basePATH = environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
             environment["PATH"] = (toolDirs + [basePATH]).joined(separator: ":")
             let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)

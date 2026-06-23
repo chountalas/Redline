@@ -11,7 +11,7 @@ def main() -> None:
         from mcp.server.fastmcp import FastMCP
     except ImportError as exc:  # pragma: no cover
         raise SystemExit(
-            "MCP support is included in the Homebrew formula. From source, run: "
+            "MCP support is included in the Homebrew app cask. From source, run: "
             "uv sync --extra mcp"
         ) from exc
 

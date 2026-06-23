@@ -1,12 +1,6 @@
 # MCP Server
 
-Homebrew installs the MCP server with the CLI:
-
-```bash
-brew install chountalas/tap/redline
-```
-
-Or install the Mac app, which depends on the CLI formula:
+Homebrew installs the MCP server with the app cask:
 
 ```bash
 brew install --cask chountalas/tap/redline-app
@@ -32,7 +26,7 @@ Example client config:
 }
 ```
 
-For a Homebrew install, use `"command": "redline-mcp"` with no `cwd`.
+For a Homebrew install, use `"command": "redline-mcp"` with no `cwd`. The command is linked from the engine bundled inside `Redline.app`.
 
 You can also run the module directly:
 
