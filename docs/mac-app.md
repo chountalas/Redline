@@ -1,13 +1,13 @@
 # Mac App
 
-Redline includes a SwiftUI macOS wrapper for local review workflows. It is a shell over the Python CLI, not a separate validator.
+Redline includes a SwiftUI macOS wrapper for local review workflows. It runs the same Python validator engine as the CLI.
 
-The public app install is the Homebrew cask. It installs the app and the CLI formula, so the GUI, `redline`, and `redline-mcp` use the same validator engine. The source checkout can also build a development app bundle.
+The public install is the Homebrew cask. It installs the app and links `redline` and `redline-mcp` from the engine bundled inside `Redline.app`. The source checkout can also build a development app bundle.
 
 ## Requirements
 
 - macOS 14 or newer
-- For public installs: Homebrew
+- For public installs: Homebrew; the cask installs the `python@3.13` runtime dependency
 - Xcode command line tools / Swift toolchain
 - `uv`
 - The provider you choose:
@@ -22,7 +22,7 @@ The public app install is the Homebrew cask. It installs the app and the CLI for
 brew install --cask chountalas/tap/redline-app
 ```
 
-The cask installs `Redline.app` into `/Applications` and depends on the CLI formula. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
+The cask installs `Redline.app` into `/Applications`, installs the Homebrew `python@3.13` runtime dependency, and links the bundled `redline` and `redline-mcp` commands. Provider adapters for Codex, Ollama, OpenAI, and Anthropic are included.
 
 Verify the install:
 
@@ -33,13 +33,12 @@ redline --version
 Upgrade later:
 
 ```bash
-brew upgrade chountalas/tap/redline
 brew upgrade --cask chountalas/tap/redline-app
 ```
 
 ## CLI Only
 
-Install the CLI:
+The app cask includes the CLI. The historical formula is only for terminal-only installs:
 
 ```bash
 brew install chountalas/tap/redline
@@ -51,9 +50,9 @@ brew install chountalas/tap/redline
 ./script/build_and_run.sh
 ```
 
-The script builds `macos/RedlineMac`, stages `dist/Redline.app`, and opens it as a foreground macOS app.
+The script builds `macos/RedlineMac`, stages `dist/Redline.app`, and opens it as a foreground macOS app backed by the source checkout.
 
-Install a development build into `/Applications`:
+Install a development build into `/Applications` with a bundled engine:
 
 ```bash
 ./script/build_and_run.sh --install
@@ -89,4 +88,4 @@ The app invokes:
 uv run redline check <document.pdf> --json --profile <profile> --provider <provider>
 ```
 
-from the repository root when launched from a source checkout. Long review context is passed through a temporary `--context-file`, not as a long command-line argument. When the app is installed outside a checkout, it invokes the installed `redline` CLI directly. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path. The default production CLI profile is `lease-general`; `lease-math` remains available for the narrower per-display-face math lane.
+from the repository root when launched from a source checkout. Long review context is passed through a temporary `--context-file`, not as a long command-line argument. Release and installed development apps invoke `Contents/Resources/Engine/bin/redline` from inside `Redline.app`; the Homebrew cask links that same bundled executable as `redline`. With the default Codex provider, this uses the local authenticated `codex` CLI and does not require an API key. This keeps the CLI, MCP server, and Mac app on the same rule engine and extractor path. The default production CLI profile is `lease-general`; `lease-math` remains available for the narrower per-display-face math lane.

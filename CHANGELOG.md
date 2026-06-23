@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 - 2026-06-23
+
+- Bundle the Python engine inside the macOS app release so the Homebrew cask installs `Redline.app`, `redline`, and `redline-mcp` without depending on the separate Redline formula.
+
 ## 0.1.3 - 2026-06-19
 
 - Add `lease-general` as the default profile while keeping `lease-math` for the narrow billboard/per-display-face lane.

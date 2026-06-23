@@ -25,8 +25,8 @@ Run the Swift commands from `macos/RedlineMac`. Run the Python and safety comman
 - `PRIVACY.md` and `SECURITY.md` still reflect the current provider behavior.
 - The macOS app launches via `./script/build_and_run.sh --verify`.
 - Release builds pass `codesign --verify --deep --strict dist/Redline.app`.
-- Homebrew formula and cask audit cleanly from the tap checkout.
+- Homebrew cask audits cleanly from the tap checkout.
 
 ## Distribution State
 
-Homebrew is the supported public install path for the CLI and app. Formula-only dependency changes can ship as a Homebrew revision. Public notarized app distribution should be cut with `./script/release.sh` before updating the cask version or URL. PyPI publication is not complete yet.
+Homebrew cask is the supported public install path for the app, CLI, and MCP server. Public notarized app distribution should be cut with `./script/release.sh` before updating the cask version or URL. PyPI publication is not complete yet.
