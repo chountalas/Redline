@@ -13,7 +13,8 @@ DMG_PATH="$ROOT_DIR/dist/$APP_NAME-$VERSION-arm64.dmg"
 ZIP_PATH="$ROOT_DIR/dist/$APP_NAME-$VERSION-arm64.zip"
 STAGING_DIR="$ROOT_DIR/dist/staging"
 SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Connor Hountalas (V54JNNN85Y)}"
-NOTARY_PROFILE="${NOTARY_PROFILE:-redline-notary}"
+NOTARY_PROFILE="${NOTARY_PROFILE:-luma-notary}"
+TEAM_ID="${TEAM_ID:-V54JNNN85Y}"
 
 cd "$ROOT_DIR"
 
@@ -21,7 +22,7 @@ echo "==> Building and signing $APP_NAME $VERSION"
 CODE_SIGN_IDENTITY="$SIGN_IDENTITY" VERSION="$VERSION" ./script/package_release.sh >/dev/null
 
 echo "==> Submitting the app zip to Apple for notarization"
-xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$NOTARY_PROFILE" --team-id "$TEAM_ID" --wait
 
 echo "==> Stapling the app notarization ticket"
 xcrun stapler staple "$APP_PATH"
@@ -45,7 +46,7 @@ echo "==> Signing the disk image"
 codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
 
 echo "==> Submitting the disk image to Apple for notarization"
-xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --team-id "$TEAM_ID" --wait
 
 echo "==> Stapling the disk image notarization ticket"
 xcrun stapler staple "$DMG_PATH"

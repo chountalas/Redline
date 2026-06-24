@@ -165,6 +165,11 @@ PLIST
 
 plutil -lint "$INFO_PLIST" >/dev/null
 
+find "$ENGINE_DIR" -type f \( -name "*.so" -o -name "*.dylib" \) -print0 |
+  while IFS= read -r -d '' binary; do
+    codesign --force --options runtime "$TIMESTAMP_FLAG" --sign "$SIGN_IDENTITY" "$binary"
+  done
+
 codesign --force --deep --options runtime "$TIMESTAMP_FLAG" --sign "$SIGN_IDENTITY" "$APP_PATH"
 codesign --verify --deep --strict "$APP_PATH"
 
